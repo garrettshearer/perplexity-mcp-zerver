@@ -10,6 +10,67 @@ import type { PageContentResult, PuppeteerContext } from "../types/index.js";
 import { fetchSimpleContent } from "./fetch.js";
 import { initializeBrowser } from "./puppeteer.js";
 
+// ─── PERPLEXITY CHAT URL PATTERNS ─────────────────────────────────────
+/**
+ * URL patterns for extracting chat IDs from Perplexity URLs.
+ * Supports both /search/ and /chat/ URL formats.
+ */
+export const PERPLEXITY_URL_PATTERNS = [
+  // Full URL with protocol: https://www.perplexity.ai/search/abc123...
+  /^https?:\/\/(?:www\.)?perplexity\.ai\/search\/([a-zA-Z0-9_-]+)/,
+  // Full URL with protocol: https://www.perplexity.ai/chat/abc123...
+  /^https?:\/\/(?:www\.)?perplexity\.ai\/chat\/([a-zA-Z0-9_-]+)/,
+  // URL without protocol: www.perplexity.ai/search/abc123...
+  /^(?:www\.)?perplexity\.ai\/search\/([a-zA-Z0-9_-]+)/,
+  // URL without protocol: www.perplexity.ai/chat/abc123...
+  /^(?:www\.)?perplexity\.ai\/chat\/([a-zA-Z0-9_-]+)/,
+];
+
+/**
+ * Pattern to validate raw chat ID format (alphanumeric with hyphens/underscores).
+ * Chat IDs are typically UUID-like strings or encoded identifiers.
+ */
+export const CHAT_ID_PATTERN = /^[a-zA-Z0-9_-]{8,}$/;
+
+/**
+ * Extract a chat ID from a Perplexity URL or validate a raw chat ID.
+ *
+ * Supported formats:
+ * - Full URL: https://www.perplexity.ai/search/abc123...
+ * - Full URL: https://www.perplexity.ai/chat/abc123...
+ * - URL without protocol: www.perplexity.ai/search/abc123...
+ * - URL without protocol: perplexity.ai/search/abc123...
+ * - Raw chat ID: abc123-def456-ghi789
+ *
+ * @param input - A Perplexity URL or raw chat ID
+ * @returns The extracted chat ID, or null if invalid
+ */
+export function extractChatId(input: string | undefined | null): string | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Try each URL pattern
+  for (const pattern of PERPLEXITY_URL_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  // If no URL pattern matched, check if it's a valid raw chat ID
+  if (CHAT_ID_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 // Helper functions for content extraction
 function detectAndRewriteGitHubUrl(
   originalUrl: string,

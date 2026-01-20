@@ -212,6 +212,64 @@ export async function navigateToPerplexity(ctx: PuppeteerContext) {
   }
 }
 
+/**
+ * Navigate to an existing Perplexity chat by ID.
+ * The chat history is automatically loaded from the URL - no message replay needed.
+ *
+ * @param ctx - The Puppeteer context with initialized page
+ * @param chatId - The chat ID to navigate to
+ * @throws Error if page not initialized, chat not found (404), auth required, or textarea not found
+ */
+export async function openPerplexityChat(ctx: PuppeteerContext, chatId: string): Promise<void> {
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  const chatUrl = `https://www.perplexity.ai/search/${chatId}`;
+  ctx.log("info", `Navigating to existing chat: ${chatUrl}`);
+
+  // Navigate with 30 second timeout (FR-009)
+  const response = await page.goto(chatUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: CONFIG.TIMEOUT_PROFILES.navigation,
+  });
+
+  // Check HTTP response status
+  if (response) {
+    const status = response.status();
+    if (status === 404) {
+      throw new Error("Chat not found: The specified chat ID does not exist or has been deleted");
+    }
+    if (!response.ok()) {
+      throw new Error(`Failed to load chat: HTTP ${status}`);
+    }
+  }
+
+  // Verify we're still on Perplexity (detect auth redirects)
+  const currentUrl = page.url();
+  if (!currentUrl.includes("perplexity.ai")) {
+    throw new Error("Authentication required: Redirected away from Perplexity");
+  }
+
+  // Wait for textarea with 10 second timeout (FR-010)
+  const selectors = getSearchInputSelectors();
+  const selectorStr = selectors.join(", ");
+
+  try {
+    await page.waitForSelector(selectorStr, {
+      timeout: CONFIG.SELECTOR_TIMEOUT,
+      visible: true,
+    });
+  } catch {
+    throw new Error("Chat page loaded but input area not found: The page may not have loaded correctly");
+  }
+
+  ctx.log("info", `Successfully opened chat: ${chatId}`);
+}
+
 export async function setupBrowserEvasion(ctx: PuppeteerContext) {
   const { page } = ctx;
   if (!page) return;
