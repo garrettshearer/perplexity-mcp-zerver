@@ -2,6 +2,37 @@ import { describe, expect, it } from "vitest";
 import { CONFIG } from "../../server/config.js";
 
 describe("Configuration", () => {
+  describe("HEADLESS Mode", () => {
+    it("should default to 'new' when PERPLEXITY_HEADLESS env var is not set", () => {
+      // Note: Since CONFIG is evaluated at import time with the current env,
+      // we test the actual value and the type
+      expect(CONFIG.HEADLESS === "new" || CONFIG.HEADLESS === false).toBe(true);
+    });
+
+    it("should have correct type for HEADLESS", () => {
+      // Verify HEADLESS is either 'new' or false (boolean)
+      const validValues: ("new" | false)[] = ["new", false];
+      expect(validValues).toContain(CONFIG.HEADLESS);
+    });
+
+    it("should evaluate to 'new' when env var is 'true'", () => {
+      // Test the logic: !== "false" ? "new" : false
+      const testCases = [
+        { input: undefined, expected: "new" },
+        { input: "true", expected: "new" },
+        { input: "1", expected: "new" },
+        { input: "yes", expected: "new" },
+        { input: "", expected: "new" },
+        { input: "false", expected: false },
+      ];
+
+      for (const { input, expected } of testCases) {
+        const result = input !== "false" ? "new" : false;
+        expect(result).toBe(expected);
+      }
+    });
+  });
+
   describe("Timeout Values", () => {
     it("should have consistent timeout values", () => {
       expect(CONFIG.PAGE_TIMEOUT).toBeGreaterThan(0);

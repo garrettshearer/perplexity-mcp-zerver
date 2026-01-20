@@ -72,6 +72,8 @@ const mockCtx: PuppeteerContext = {
   incrementOperationCount: vi.fn(),
   determineRecoveryLevel: vi.fn(),
   IDLE_TIMEOUT_MS: 300000,
+  initPromise: null,
+  setInitPromise: vi.fn(),
 };
 
 describe("Tools", () => {

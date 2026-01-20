@@ -1,7 +1,9 @@
 /**
  * Puppeteer utility functions for browser automation, navigation, and recovery
  */
-import puppeteer, { type Browser, type Page } from "puppeteer";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import type { Browser, Page } from "puppeteer";
 import { promises as fs } from "fs";
 import { CONFIG } from "../server/config.js";
 import type { PuppeteerContext, RecoveryContext } from "../types/index.js";
@@ -15,6 +17,9 @@ import {
   getSearchInputSelectors,
 } from "./puppeteer-logic.js";
 
+// Apply stealth plugin to reduce bot detection
+puppeteer.use(StealthPlugin());
+
 export async function initializeBrowser(ctx: PuppeteerContext) {
   if (ctx.isInitializing) {
     logInfo("Browser initialization already in progress...");
@@ -25,11 +30,11 @@ export async function initializeBrowser(ctx: PuppeteerContext) {
     if (ctx.browser) {
       await ctx.browser.close();
     }
-    const headless = true;
+    const headless = CONFIG.HEADLESS;
     let browserArgs = generateBrowserArgs(CONFIG.USER_AGENT);
 
     // Remove GPU-disabling flags when in non-headless mode (needed for rendering)
-    if (!headless) {
+    if (headless === false) {
       browserArgs = browserArgs.filter(arg =>
         !arg.includes('--disable-gpu') &&
         !arg.includes('--disable-accelerated-2d-canvas')
@@ -37,7 +42,7 @@ export async function initializeBrowser(ctx: PuppeteerContext) {
     }
 
     const browser = await puppeteer.launch({
-      headless,
+      headless: headless as boolean | "shell" | undefined,
       args: browserArgs,
       userDataDir: CONFIG.USE_PERSISTENT_PROFILE ? CONFIG.BROWSER_DATA_DIR : undefined,
     });
