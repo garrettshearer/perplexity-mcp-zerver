@@ -21,6 +21,8 @@ export type {
   PageContentResult,
   RecursiveFetchResult,
   ModelSwitchResult,
+  SendChatMessageOptions,
+  SendChatMessageResult,
 } from "./browser.js";
 
 // ─── DATABASE & CHAT TYPES ────────────────────────────────────────────

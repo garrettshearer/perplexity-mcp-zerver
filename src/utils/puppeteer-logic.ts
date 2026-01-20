@@ -440,3 +440,90 @@ export function isNavigationFailure(url: string, expectedUrl?: string): boolean 
 
   return false;
 }
+
+// ─── SUBMIT BUTTON SELECTORS ──────────────────────────────────────────
+
+/**
+ * Submit button selectors in priority order.
+ * Multiple selectors provide resilience against UI changes (FR-005).
+ *
+ * Priority reasoning:
+ * 1. Accessibility attributes (aria-label) - most stable, required for a11y
+ * 2. Test hooks (data-testid) - intentionally stable for testing
+ * 3. Semantic HTML (type="submit") - standards-based
+ * 4. Class-based - least stable, last resort
+ */
+export const SUBMIT_BUTTON_SELECTORS = [
+  // Accessibility-first (most stable)
+  '[aria-label*="submit" i]',
+  '[aria-label*="send" i]',
+  '[aria-label*="Submit"]',
+  '[aria-label*="Send"]',
+
+  // Test hooks (intentionally stable)
+  '[data-testid*="submit"]',
+  '[data-testid*="send"]',
+  '[data-testid="submit-button"]',
+  '[data-testid="send-button"]',
+
+  // Semantic HTML (standards-based)
+  'button[type="submit"]',
+  'form button:last-of-type', // Common pattern: submit is last button in form
+
+  // Class-based fallbacks (least stable)
+  'button[class*="submit"]',
+  'button[class*="send"]',
+  'button[class*="Submit"]',
+  'button[class*="Send"]',
+  'button svg[class*="arrow"]', // SVG arrow icon fallback for Perplexity
+] as const;
+
+/**
+ * Type for submit button selector tuple.
+ */
+export type SubmitButtonSelector = (typeof SUBMIT_BUTTON_SELECTORS)[number];
+
+/**
+ * Textarea selectors for chat input detection.
+ * Multiple selectors provide resilience against UI changes.
+ */
+export const TEXTAREA_SELECTORS = [
+  // Accessibility-first
+  'textarea[aria-label*="search" i]',
+  'textarea[aria-label*="ask" i]',
+  'textarea[aria-label*="message" i]',
+  'textarea[aria-label*="query" i]',
+
+  // Test hooks
+  'textarea[data-testid*="search"]',
+  'textarea[data-testid*="input"]',
+  'textarea[data-testid*="query"]',
+
+  // Placeholder-based
+  'textarea[placeholder*="search" i]',
+  'textarea[placeholder*="ask" i]',
+
+  // Generic fallbacks
+  'textarea',
+] as const;
+
+/**
+ * Type for textarea selector tuple.
+ */
+export type TextareaSelector = (typeof TEXTAREA_SELECTORS)[number];
+
+/**
+ * Get combined submit button selector string for waitForSelector.
+ * @returns CSS selector string with all submit button selectors joined by comma
+ */
+export function getSubmitButtonSelector(): string {
+  return SUBMIT_BUTTON_SELECTORS.join(', ');
+}
+
+/**
+ * Get combined textarea selector string for waitForSelector.
+ * @returns CSS selector string with all textarea selectors joined by comma
+ */
+export function getTextareaSelector(): string {
+  return TEXTAREA_SELECTORS.join(', ');
+}
