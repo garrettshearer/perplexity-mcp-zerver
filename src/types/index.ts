@@ -3,6 +3,14 @@
  * Centralized exports from focused type modules
  */
 
+// ─── RESEARCH MODE TYPE ───────────────────────────────────────────────
+/**
+ * Research mode for Perplexity search queries.
+ * - 'search': Fast answers mode (default) - quick, concise responses
+ * - 'deep-research': Comprehensive analysis mode - thorough, detailed research
+ */
+export type ResearchMode = "search" | "deep-research";
+
 // ─── BROWSER & PUPPETEER TYPES ────────────────────────────────────────
 export type {
   BrowserConfig,
@@ -12,6 +20,9 @@ export type {
   IBrowserManager,
   PageContentResult,
   RecursiveFetchResult,
+  ModelSwitchResult,
+  SendChatMessageOptions,
+  SendChatMessageResult,
 } from "./browser.js";
 
 // ─── DATABASE & CHAT TYPES ────────────────────────────────────────────

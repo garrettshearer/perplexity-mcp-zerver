@@ -29,6 +29,10 @@ export interface ToolHandlersRegistry {
 export interface ChatPerplexityArgs {
   message: string;
   chat_id?: string;
+  chat_url?: string;
+  space_id?: string;
+  /** Optional: AI model to use for this chat (e.g., "Claude 3.5 Sonnet", "GPT-4o") */
+  model?: string;
 }
 
 export interface ExtractUrlContentArgs {
@@ -54,6 +58,9 @@ export interface CheckDeprecatedCodeArgs {
 export interface SearchArgs {
   query: string;
   detail_level?: "brief" | "normal" | "detailed";
+  space_id?: string;
+  /** Optional: AI model to use for this search (e.g., "Claude 3.5 Sonnet", "GPT-4o") */
+  model?: string;
 }
 
 // ─── UNION TYPES ──────────────────────────────────────────────────────

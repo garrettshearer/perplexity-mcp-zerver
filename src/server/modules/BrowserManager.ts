@@ -23,6 +23,7 @@ export class BrowserManager implements IBrowserManager {
   public idleTimeout: NodeJS.Timeout | null = null;
   public operationCount = 0;
   public readonly IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+  private initPromise: Promise<void> | null = null;
 
   public getPuppeteerContext(): PuppeteerContext {
     return {
@@ -52,6 +53,10 @@ export class BrowserManager implements IBrowserManager {
       incrementOperationCount: () => ++this.operationCount,
       determineRecoveryLevel: this.determineRecoveryLevel.bind(this),
       IDLE_TIMEOUT_MS: this.IDLE_TIMEOUT_MS,
+      initPromise: this.initPromise,
+      setInitPromise: (promise) => {
+        this.initPromise = promise;
+      },
     };
   }
 
@@ -100,11 +105,24 @@ export class BrowserManager implements IBrowserManager {
   }
 
   async initialize(): Promise<void> {
-    if (this.isInitializing) {
-      logInfo("Browser initialization already in progress...");
+    // If already initializing, wait for existing promise
+    if (this.initPromise) {
+      logInfo("Browser initialization already in progress, waiting...");
+      await this.initPromise;
       return;
     }
 
+    // Create new initialization promise
+    this.initPromise = this._doInitialize();
+
+    try {
+      await this.initPromise;
+    } finally {
+      this.initPromise = null;
+    }
+  }
+
+  private async _doInitialize(): Promise<void> {
     try {
       const ctx = this.getPuppeteerContext();
       await initializeBrowser(ctx);

@@ -1,10 +1,17 @@
+import { promises as fs } from "node:fs";
+import type { Browser, Page } from "puppeteer";
 /**
  * Puppeteer utility functions for browser automation, navigation, and recovery
  */
-import puppeteer, { type Browser, type Page } from "puppeteer";
-import { promises as fs } from "fs";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { CONFIG } from "../server/config.js";
-import type { PuppeteerContext, RecoveryContext } from "../types/index.js";
+import type {
+  PuppeteerContext,
+  RecoveryContext,
+  SendChatMessageOptions,
+  SendChatMessageResult,
+} from "../types/index.js";
 import { logError, logInfo, logWarn } from "./logging.js";
 import {
   analyzeError,
@@ -13,7 +20,13 @@ import {
   generateBrowserArgs,
   getCaptchaSelectors,
   getSearchInputSelectors,
+  getSubmitButtonSelector,
+  SUBMIT_BUTTON_SELECTORS,
+  TEXTAREA_SELECTORS,
 } from "./puppeteer-logic.js";
+
+// Apply stealth plugin to reduce bot detection
+puppeteer.use(StealthPlugin());
 
 export async function initializeBrowser(ctx: PuppeteerContext) {
   if (ctx.isInitializing) {
@@ -25,19 +38,18 @@ export async function initializeBrowser(ctx: PuppeteerContext) {
     if (ctx.browser) {
       await ctx.browser.close();
     }
-    const headless = true;
+    const headless = CONFIG.HEADLESS;
     let browserArgs = generateBrowserArgs(CONFIG.USER_AGENT);
 
     // Remove GPU-disabling flags when in non-headless mode (needed for rendering)
-    if (!headless) {
-      browserArgs = browserArgs.filter(arg =>
-        !arg.includes('--disable-gpu') &&
-        !arg.includes('--disable-accelerated-2d-canvas')
+    if (headless === false) {
+      browserArgs = browserArgs.filter(
+        (arg) => !arg.includes("--disable-gpu") && !arg.includes("--disable-accelerated-2d-canvas"),
       );
     }
 
     const browser = await puppeteer.launch({
-      headless,
+      headless: headless as boolean | "shell" | undefined,
       args: browserArgs,
       userDataDir: CONFIG.USE_PERSISTENT_PROFILE ? CONFIG.BROWSER_DATA_DIR : undefined,
     });
@@ -207,6 +219,491 @@ export async function navigateToPerplexity(ctx: PuppeteerContext) {
   }
 }
 
+/**
+ * Navigate to an existing Perplexity chat by ID.
+ * The chat history is automatically loaded from the URL - no message replay needed.
+ *
+ * @param ctx - The Puppeteer context with initialized page
+ * @param chatId - The chat ID to navigate to
+ * @throws Error if page not initialized, chat not found (404), auth required, or textarea not found
+ */
+export async function openPerplexityChat(ctx: PuppeteerContext, chatId: string): Promise<void> {
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  const chatUrl = `https://www.perplexity.ai/search/${chatId}`;
+  ctx.log("info", `Navigating to existing chat: ${chatUrl}`);
+
+  // Navigate with 30 second timeout (FR-009)
+  const response = await page.goto(chatUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: CONFIG.TIMEOUT_PROFILES.navigation,
+  });
+
+  // Check HTTP response status
+  if (response) {
+    const status = response.status();
+    if (status === 404) {
+      throw new Error("Chat not found: The specified chat ID does not exist or has been deleted");
+    }
+    if (!response.ok()) {
+      throw new Error(`Failed to load chat: HTTP ${status}`);
+    }
+  }
+
+  // Verify we're still on Perplexity (detect auth redirects)
+  const currentUrl = page.url();
+  if (!currentUrl.includes("perplexity.ai")) {
+    throw new Error("Authentication required: Redirected away from Perplexity");
+  }
+
+  // Wait for textarea with 10 second timeout (FR-010)
+  const selectors = getSearchInputSelectors();
+  const selectorStr = selectors.join(", ");
+
+  try {
+    await page.waitForSelector(selectorStr, {
+      timeout: CONFIG.SELECTOR_TIMEOUT,
+      visible: true,
+    });
+  } catch {
+    throw new Error(
+      "Chat page loaded but input area not found: The page may not have loaded correctly",
+    );
+  }
+
+  ctx.log("info", `Successfully opened chat: ${chatId}`);
+}
+
+/**
+ * Navigate to a Perplexity Space by ID.
+ * Validates the space loads correctly by checking for chat input.
+ *
+ * @param ctx - The Puppeteer context with initialized page
+ * @param spaceId - The space ID to navigate to (non-empty string)
+ * @throws Error if:
+ *   - Page not initialized
+ *   - Space ID is empty/invalid
+ *   - Space not found (404)
+ *   - Auth redirect detected
+ *   - Selector timeout (chat input not found)
+ */
+export async function openPerplexitySpace(ctx: PuppeteerContext, spaceId: string): Promise<void> {
+  const { page } = ctx;
+
+  // T022: Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  // T023: Validate space ID is not empty or whitespace
+  if (!spaceId || spaceId.trim() === "") {
+    throw new Error("Space ID is required: Please provide a valid space ID");
+  }
+
+  const spaceUrl = `https://www.perplexity.ai/spaces/${spaceId}`;
+  ctx.log("info", `Navigating to space: ${spaceUrl}`);
+
+  // T024, T025: Navigate with 30 second timeout
+  const response = await page.goto(spaceUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: CONFIG.TIMEOUT_PROFILES.navigation,
+  });
+
+  // T025: Check HTTP response status - 404 means space not found
+  if (response) {
+    const status = response.status();
+    if (status === 404) {
+      throw new Error(
+        `Space not found: The space '${spaceId}' does not exist or has been deleted. Please verify the space ID is correct.`,
+      );
+    }
+    if (!response.ok()) {
+      throw new Error(`Failed to load space: HTTP ${status}`);
+    }
+  }
+
+  // T026: Verify we're still on Perplexity (detect auth redirects)
+  const currentUrl = page.url();
+  if (!currentUrl.includes("perplexity.ai")) {
+    throw new Error(
+      "Authentication required: Redirected away from Perplexity. Please check that you are logged in.",
+    );
+  }
+
+  // T027: Wait for textarea with 10 second timeout
+  const selectors = getSearchInputSelectors();
+  const selectorStr = selectors.join(", ");
+
+  try {
+    await page.waitForSelector(selectorStr, {
+      timeout: CONFIG.SELECTOR_TIMEOUT,
+      visible: true,
+    });
+  } catch {
+    throw new Error(
+      "Space page loaded but input area not found: The page may not have loaded correctly. Try refreshing or check if the space is accessible.",
+    );
+  }
+
+  // T028: Log success
+  ctx.log("info", `Successfully opened space: ${spaceId}`);
+}
+
+/**
+ * Switch to a specific AI model in the Perplexity UI.
+ *
+ * Opens the model selector dropdown, finds the requested model (case-insensitive),
+ * and selects it. Supports partial matching (e.g., "Claude" matches "Claude 3.5 Sonnet").
+ *
+ * @param ctx - The Puppeteer context with initialized page
+ * @param requestedModel - The model name to switch to (case-insensitive, partial match supported)
+ * @returns ModelSwitchResult with success status and details
+ * @throws Error if:
+ *   - Page not initialized
+ *   - Dropdown cannot be opened (likely not logged in)
+ *   - Model options don't load within timeout (5s)
+ *   - Requested model not found in dropdown
+ */
+export async function switchModel(
+  ctx: PuppeteerContext,
+  requestedModel: string,
+): Promise<import("../types/index.js").ModelSwitchResult> {
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  ctx.log("info", `Attempting to switch model to: ${requestedModel}`);
+
+  // Import helper functions from puppeteer-logic
+  const { MODEL_SELECTORS, normalizeModelName, matchesModelName } = await import(
+    "./puppeteer-logic.js"
+  );
+
+  // Step 1: Check if model is already selected (optimization for US3)
+  const currentSelection = await getCurrentModelSelection(page, MODEL_SELECTORS);
+  if (currentSelection && matchesModelName(currentSelection, requestedModel)) {
+    ctx.log("info", `Model "${requestedModel}" is already selected`);
+    return {
+      success: true,
+      selectedModel: currentSelection,
+      wasAlreadySelected: true,
+    };
+  }
+
+  // Step 2: Find and click the dropdown trigger
+  const dropdownOpened = await openModelDropdown(page, MODEL_SELECTORS, ctx);
+  if (!dropdownOpened) {
+    throw new Error(
+      "Could not open model selector dropdown. Please ensure you are logged in and on a page with the model selector.",
+    );
+  }
+
+  // Step 3: Wait for options to appear (5s timeout per FR-004)
+  const options = await waitForModelOptions(page, MODEL_SELECTORS, 5000);
+  if (!options || options.length === 0) {
+    throw new Error("Model selector options did not load within 5000ms.");
+  }
+
+  // Step 4: Find matching model option (case-insensitive)
+  const availableModels = options.map((opt) => opt.text);
+  const matchingOption = options.find((opt) => matchesModelName(opt.text, requestedModel));
+
+  if (!matchingOption) {
+    // Close dropdown before throwing error
+    await page.keyboard.press("Escape").catch(() => {});
+    throw new Error(
+      `Model "${requestedModel}" not found in dropdown options. Available models: ${availableModels.join(", ")}`,
+    );
+  }
+
+  // Step 5: Click the matching option
+  try {
+    await matchingOption.element.click();
+    ctx.log("info", `Successfully selected model: ${matchingOption.text}`);
+
+    // Small delay to let UI update
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    return {
+      success: true,
+      selectedModel: matchingOption.text,
+      wasAlreadySelected: false,
+    };
+  } catch (clickError) {
+    throw new Error(
+      `Failed to click model option "${matchingOption.text}": ${clickError instanceof Error ? clickError.message : String(clickError)}`,
+    );
+  }
+}
+
+/**
+ * Get the currently selected model from the dropdown trigger
+ */
+async function getCurrentModelSelection(
+  page: import("puppeteer").Page,
+  selectors: typeof import("./puppeteer-logic.js").MODEL_SELECTORS,
+): Promise<string | null> {
+  try {
+    // Try each dropdown trigger selector
+    for (const selector of selectors.dropdownTrigger) {
+      const element = await page.$(selector);
+      if (element) {
+        const text = await page.evaluate((el) => el.textContent?.trim() || "", element);
+        if (text && text.length > 0) {
+          return text;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open the model selector dropdown
+ */
+async function openModelDropdown(
+  page: import("puppeteer").Page,
+  selectors: typeof import("./puppeteer-logic.js").MODEL_SELECTORS,
+  ctx: PuppeteerContext,
+): Promise<boolean> {
+  // Try each dropdown trigger selector
+  for (const selector of selectors.dropdownTrigger) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        await element.click();
+        // Wait a bit for dropdown to open
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        ctx.log("info", `Clicked dropdown trigger using selector: ${selector}`);
+        return true;
+      }
+    } catch {
+      // Continue to next selector
+    }
+  }
+  return false;
+}
+
+/**
+ * Wait for model options to appear and return them
+ */
+async function waitForModelOptions(
+  page: import("puppeteer").Page,
+  selectors: typeof import("./puppeteer-logic.js").MODEL_SELECTORS,
+  timeout: number,
+): Promise<Array<{ text: string; element: import("puppeteer").ElementHandle }> | null> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    // Try to find options container first
+    for (const containerSelector of selectors.optionsContainer) {
+      const container = await page.$(containerSelector);
+      if (container) {
+        // Look for option items within container or globally
+        for (const optionSelector of selectors.optionItem) {
+          const options = await page.$$(optionSelector);
+          if (options.length > 0) {
+            // Extract text from each option
+            const optionsWithText = await Promise.all(
+              options.map(async (el) => ({
+                text: await page.evaluate((e) => e.textContent?.trim() || "", el),
+                element: el,
+              })),
+            );
+            // Filter out empty options
+            const validOptions = optionsWithText.filter((opt) => opt.text.length > 0);
+            if (validOptions.length > 0) {
+              return validOptions;
+            }
+          }
+        }
+      }
+    }
+
+    // Also try option selectors directly (without container)
+    for (const optionSelector of selectors.optionItem) {
+      const options = await page.$$(optionSelector);
+      if (options.length > 1) {
+        // More than 1 to ensure it's the dropdown, not current selection
+        const optionsWithText = await Promise.all(
+          options.map(async (el) => ({
+            text: await page.evaluate((e) => e.textContent?.trim() || "", el),
+            element: el,
+          })),
+        );
+        const validOptions = optionsWithText.filter((opt) => opt.text.length > 0);
+        if (validOptions.length > 1) {
+          return validOptions;
+        }
+      }
+    }
+
+    // Wait a bit before next check
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  return null;
+}
+
+// ─── RESEARCH MODE SWITCHING ──────────────────────────────────────────
+
+/**
+ * Result of a research mode switch operation
+ */
+export interface ResearchModeResult {
+  success: boolean;
+  mode: import("../types/index.js").ResearchMode;
+  wasAlreadyActive: boolean;
+}
+
+/**
+ * Set the research mode for Perplexity searches.
+ * Switches between "search" (fast answers) and "deep-research" (comprehensive analysis).
+ *
+ * Follows the same pattern as switchModel() with:
+ * - State detection via aria-selected (FR-003)
+ * - Early return optimization when mode already active (SC-003)
+ * - Fallback selectors for resilience (FR-004)
+ * - 500ms UI stabilization delay (per spec)
+ * - Graceful degradation when toggle not found (FR-007)
+ *
+ * @param ctx - Puppeteer context with browser/page instances
+ * @param mode - Target research mode: 'search' or 'deep-research'
+ * @returns Result object with success status, mode, and whether it was already active
+ */
+export async function setResearchMode(
+  ctx: PuppeteerContext,
+  mode: import("../types/index.js").ResearchMode,
+): Promise<ResearchModeResult> {
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  ctx.log("info", `Attempting to set research mode to: ${mode}`);
+
+  // Import helper functions from puppeteer-logic
+  const { RESEARCH_MODE_SELECTORS, isResearchModeActive, getResearchModeSelectors } = await import(
+    "./puppeteer-logic.js"
+  );
+
+  // Step 1: Get the appropriate selectors for the target mode
+  const modeSelectors = getResearchModeSelectors(mode);
+
+  // Step 2: Check if mode is already active (optimization for SC-003)
+  const isAlreadyActive = await checkResearchModeActive(page, modeSelectors);
+  if (isAlreadyActive) {
+    ctx.log("info", `Research mode "${mode}" is already active`);
+    return {
+      success: true,
+      mode,
+      wasAlreadyActive: true,
+    };
+  }
+
+  // Step 3: Find and click the mode button using fallback selectors (FR-004)
+  const clicked = await clickResearchModeButton(page, modeSelectors, ctx);
+  if (!clicked) {
+    // Graceful degradation: warn and proceed (FR-007)
+    ctx.log(
+      "warn",
+      `Research mode toggle element not found. Proceeding with current mode. Selectors tried: ${modeSelectors.join(", ")}`,
+    );
+    return {
+      success: false,
+      mode,
+      wasAlreadyActive: false,
+    };
+  }
+
+  // Step 4: Wait for UI stabilization (500ms per spec)
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  ctx.log("info", `Successfully set research mode to: ${mode}`);
+  return {
+    success: true,
+    mode,
+    wasAlreadyActive: false,
+  };
+}
+
+/**
+ * Check if the target research mode button is already active
+ */
+async function checkResearchModeActive(
+  page: import("puppeteer").Page,
+  modeSelectors: readonly string[],
+): Promise<boolean> {
+  try {
+    // Import helper function
+    const { isResearchModeActive, RESEARCH_MODE_SELECTORS } = await import("./puppeteer-logic.js");
+
+    // Try each selector for the mode button
+    for (const selector of modeSelectors) {
+      const element = await page.$(selector);
+      if (element) {
+        // Check aria-selected attribute (FR-003)
+        const ariaSelected = await page.evaluate(
+          (el) => el.getAttribute("aria-selected"),
+          element,
+        );
+
+        // Check for selected/active class as fallback
+        const hasSelectedClass = await page.evaluate(
+          (el) =>
+            el.classList.contains("selected") ||
+            el.classList.contains("active") ||
+            el.getAttribute("data-selected") === "true",
+          element,
+        );
+
+        if (isResearchModeActive(ariaSelected, hasSelectedClass)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Click the research mode button using fallback selectors
+ */
+async function clickResearchModeButton(
+  page: import("puppeteer").Page,
+  modeSelectors: readonly string[],
+  ctx: PuppeteerContext,
+): Promise<boolean> {
+  // Try each selector in priority order (FR-004)
+  for (const selector of modeSelectors) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        await element.click();
+        ctx.log("info", `Clicked research mode button using selector: ${selector}`);
+        return true;
+      }
+    } catch {
+      // Continue to next selector
+    }
+  }
+  return false;
+}
+
 export async function setupBrowserEvasion(ctx: PuppeteerContext) {
   const { page } = ctx;
   if (!page) return;
@@ -236,11 +733,11 @@ export async function setupBrowserEvasion(ctx: PuppeteerContext) {
             READY_TO_RUN: "ready_to_run",
             RUNNING: "running",
           },
-          getDetails: () => { },
-          getIsInstalled: () => { },
-          installState: () => { },
+          getDetails: () => {},
+          getIsInstalled: () => {},
+          installState: () => {},
           isInstalled: false,
-          runningState: () => { },
+          runningState: () => {},
         },
         runtime: {
           OnInstalledReason: {
@@ -278,12 +775,12 @@ export async function setupBrowserEvasion(ctx: PuppeteerContext) {
             UPDATE_AVAILABLE: "update_available",
           },
           connect: () => ({
-            postMessage: () => { },
+            postMessage: () => {},
             onMessage: {
-              addListener: () => { },
-              removeListener: () => { },
+              addListener: () => {},
+              removeListener: () => {},
             },
-            disconnect: () => { },
+            disconnect: () => {},
           }),
         },
       };
@@ -496,7 +993,7 @@ export async function recoveryProcedure(ctx: PuppeteerContext, error?: Error): P
           }
           ctx.setPage(null);
         }
-        if (ctx.browser && ctx.browser.isConnected()) {
+        if (ctx.browser?.isConnected()) {
           try {
             const page = await ctx.browser.newPage();
             ctx.setPage(page);
@@ -517,8 +1014,6 @@ export async function recoveryProcedure(ctx: PuppeteerContext, error?: Error): P
           return await recoveryProcedure(ctx, new Error("Fallback recovery: browser disconnected"));
         }
         break;
-
-      case 3: // Full restart
       default:
         logInfo("Performing full browser restart (Recovery Level 3)");
         if (ctx.page) {
@@ -878,4 +1373,260 @@ export function resetIdleTimeout(ctx: PuppeteerContext) {
     ctx.IDLE_TIMEOUT_MS ?? 5 * 60 * 1000,
   );
   ctx.setIdleTimeout(timeout);
+}
+
+// ─── SAFE INPUT: sendChatMessage ─────────────────────────────────────────────
+
+/**
+ * Send a chat message to Perplexity by directly setting textarea value.
+ *
+ * This method safely handles:
+ * - Multiline text (preserves \n characters)
+ * - Special characters (quotes, brackets, Unicode)
+ * - React controlled component state updates
+ *
+ * ## Algorithm
+ *
+ * 1. Wait for textarea using prioritized selector list
+ * 2. Focus the textarea element
+ * 3. Use native HTMLTextAreaElement.prototype.value setter (bypasses React)
+ * 4. Dispatch 'input' event with bubbles:true to trigger React
+ * 5. Optionally verify value was set correctly
+ * 6. If autoSubmit: find and click submit button
+ *
+ * ## Error Conditions
+ *
+ * - Throws if textarea not found within textareaTimeout
+ * - Throws if value verification fails (when verifyValue=true)
+ * - Throws if submit button not found/enabled within submitTimeout (when autoSubmit=true)
+ *
+ * ## Performance
+ *
+ * Expected execution time: 100-500ms (much faster than keyboard simulation)
+ *
+ * @param ctx - Puppeteer context with initialized page
+ * @param message - The message to send (supports multiline, special chars, Unicode, emojis)
+ * @param options - Configuration options for the operation
+ * @returns Result object with success status and diagnostic information
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const result = await sendChatMessage(ctx, "Hello, world!");
+ *
+ * // Multiline message
+ * const result = await sendChatMessage(ctx, "Line 1\nLine 2\nLine 3");
+ *
+ * // With options
+ * const result = await sendChatMessage(ctx, "Test message", {
+ *   autoSubmit: false,  // Don't click submit
+ *   verifyValue: true,  // Verify the value was set
+ * });
+ * ```
+ */
+export async function sendChatMessage(
+  ctx: PuppeteerContext,
+  message: string,
+  options: SendChatMessageOptions = {},
+): Promise<SendChatMessageResult> {
+  const startTime = performance.now();
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: "",
+      error: "Page not initialized",
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Apply default options
+  const {
+    textareaTimeout = CONFIG.SELECTOR_TIMEOUT,
+    submitTimeout = 5000,
+    autoSubmit = true,
+    eventTypes = ["input"],
+    verifyValue = true,
+  } = options;
+
+  // Step 1: Find textarea using prioritized selectors
+  const textareaSelectorString = TEXTAREA_SELECTORS.join(", ");
+  let foundTextareaSelector = "";
+
+  try {
+    await page.waitForSelector(textareaSelectorString, {
+      timeout: textareaTimeout,
+      visible: true,
+    });
+
+    // Determine which selector matched
+    for (const selector of TEXTAREA_SELECTORS) {
+      const element = await page.$(selector);
+      if (element) {
+        foundTextareaSelector = selector;
+        break;
+      }
+    }
+
+    if (!foundTextareaSelector) {
+      foundTextareaSelector = "textarea"; // Fallback
+    }
+  } catch {
+    const currentUrl = page.url();
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: "",
+      error: `Textarea not found within ${textareaTimeout}ms. Tried selectors: ${TEXTAREA_SELECTORS.join(", ")}. Current URL: ${currentUrl}. The page may not have loaded correctly.`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Step 2: Focus the textarea
+  try {
+    await page.focus(foundTextareaSelector);
+  } catch (focusError) {
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: foundTextareaSelector,
+      error: `Failed to focus textarea: ${focusError instanceof Error ? focusError.message : String(focusError)}`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Step 3 & 4: Set value using native setter and dispatch events
+  // This pattern bypasses React's controlled component wrapper (R2 from research.md)
+  let setValue = "";
+  try {
+    setValue = await page.$eval(
+      foundTextareaSelector,
+      (textarea: Element, text: string, events: readonly string[]) => {
+        const el = textarea as HTMLTextAreaElement;
+
+        // Get the native HTMLTextAreaElement value setter to bypass React
+        const nativeValueSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype,
+          "value",
+        )?.set;
+
+        // Use native setter to bypass React's controlled component wrapper
+        if (nativeValueSetter) {
+          nativeValueSetter.call(el, text);
+        } else {
+          // Fallback: direct assignment (may not trigger React)
+          el.value = text;
+        }
+
+        // Dispatch events to notify React of the change (R1 from research.md)
+        for (const eventType of events) {
+          el.dispatchEvent(
+            new Event(eventType, {
+              bubbles: true,
+              composed: true,
+            }),
+          );
+        }
+
+        return el.value;
+      },
+      message,
+      eventTypes,
+    );
+  } catch (evalError) {
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: foundTextareaSelector,
+      error: `Failed to set textarea value: ${evalError instanceof Error ? evalError.message : String(evalError)}. The textarea may be read-only or the page structure has changed.`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Step 5: Verify value was set correctly (optional)
+  if (verifyValue && setValue !== message) {
+    // Build detailed error with character comparison
+    const expectedChars = [...message].map((c) => `${c}(${c.charCodeAt(0)})`).join("");
+    const actualChars = [...setValue].map((c) => `${c}(${c.charCodeAt(0)})`).join("");
+    return {
+      success: false,
+      setValue,
+      textareaSelector: foundTextareaSelector,
+      error: `Value verification failed: expected "${message.substring(0, 50)}${message.length > 50 ? "..." : ""}" but got "${setValue.substring(0, 50)}${setValue.length > 50 ? "..." : ""}". Expected chars: ${expectedChars.substring(0, 100)}. Actual chars: ${actualChars.substring(0, 100)}.`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Brief delay to allow React state update (per research.md)
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // Step 6: Find and click submit button (if autoSubmit)
+  let foundSubmitSelector: string | undefined;
+
+  if (autoSubmit) {
+    const submitSelectorString = getSubmitButtonSelector();
+
+    try {
+      await page.waitForSelector(submitSelectorString, {
+        timeout: submitTimeout,
+        visible: true,
+      });
+
+      // Determine which selector matched
+      for (const selector of SUBMIT_BUTTON_SELECTORS) {
+        const element = await page.$(selector);
+        if (element) {
+          // Verify button is not disabled
+          const isEnabled = await page.$eval(selector, (btn: Element) => {
+            const button = btn as HTMLButtonElement;
+            return !button.disabled && button.getAttribute("aria-disabled") !== "true";
+          });
+
+          if (isEnabled) {
+            foundSubmitSelector = selector;
+            break;
+          }
+        }
+      }
+
+      if (!foundSubmitSelector) {
+        // Try to click any visible submit button as fallback
+        foundSubmitSelector = submitSelectorString;
+      }
+
+      // Click with retry logic (500ms delay on first failure)
+      try {
+        await page.click(foundSubmitSelector);
+      } catch {
+        // Retry after 500ms delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await page.click(foundSubmitSelector);
+      }
+
+      logInfo(
+        `Message submitted successfully using selector: ${foundSubmitSelector}`,
+      );
+    } catch (submitError) {
+      const currentUrl = page.url();
+      return {
+        success: false,
+        setValue,
+        textareaSelector: foundTextareaSelector,
+        submitSelector: foundSubmitSelector,
+        error: `Submit button not found or not enabled within ${submitTimeout}ms. Tried selectors: ${SUBMIT_BUTTON_SELECTORS.join(", ")}. Current URL: ${currentUrl}. This may indicate a login wall or changed UI.`,
+        durationMs: performance.now() - startTime,
+      };
+    }
+  }
+
+  return {
+    success: true,
+    setValue,
+    textareaSelector: foundTextareaSelector,
+    submitSelector: foundSubmitSelector,
+    durationMs: performance.now() - startTime,
+  };
 }

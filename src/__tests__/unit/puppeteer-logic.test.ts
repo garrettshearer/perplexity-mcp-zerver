@@ -267,4 +267,100 @@ describe("Puppeteer Logic Utilities", () => {
       expect(typeof selectors[0]).toBe("string");
     });
   });
+
+  // ─── USER STORY 4: SUBMIT BUTTON SELECTOR TESTS ─────────────────────────────
+
+  describe("Submit Button Selectors (US4)", () => {
+    it("should provide submit button selectors in priority order", async () => {
+      const { SUBMIT_BUTTON_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      expect(Array.isArray(SUBMIT_BUTTON_SELECTORS)).toBe(true);
+      expect(SUBMIT_BUTTON_SELECTORS.length).toBeGreaterThan(0);
+      expect(typeof SUBMIT_BUTTON_SELECTORS[0]).toBe("string");
+    });
+
+    it("tries aria-label selectors first", async () => {
+      const { SUBMIT_BUTTON_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      // First 4 selectors should be aria-label based
+      const firstSelector = SUBMIT_BUTTON_SELECTORS[0];
+      expect(firstSelector).toContain("aria-label");
+    });
+
+    it("falls back to data-testid selectors", async () => {
+      const { SUBMIT_BUTTON_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      // Should contain data-testid selectors
+      const hasTestIdSelectors = SUBMIT_BUTTON_SELECTORS.some((s) =>
+        s.includes("data-testid"),
+      );
+      expect(hasTestIdSelectors).toBe(true);
+    });
+
+    it("falls back to button[type=submit]", async () => {
+      const { SUBMIT_BUTTON_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      // Should contain semantic HTML selector
+      const hasSubmitType = SUBMIT_BUTTON_SELECTORS.some((s) =>
+        s.includes('button[type="submit"]'),
+      );
+      expect(hasSubmitType).toBe(true);
+    });
+
+    it("provides combined selector string via getSubmitButtonSelector()", async () => {
+      const { getSubmitButtonSelector, SUBMIT_BUTTON_SELECTORS } = await import(
+        "../../utils/puppeteer-logic.js"
+      );
+
+      const combined = getSubmitButtonSelector();
+
+      expect(typeof combined).toBe("string");
+      expect(combined).toContain(",");
+      // Should include all selectors joined by comma
+      for (const selector of SUBMIT_BUTTON_SELECTORS) {
+        expect(combined).toContain(selector);
+      }
+    });
+
+    it("should have at least 10 fallback selectors for resilience", async () => {
+      const { SUBMIT_BUTTON_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      // Per spec: should have multiple fallback selectors (15 in data-model.md)
+      expect(SUBMIT_BUTTON_SELECTORS.length).toBeGreaterThanOrEqual(10);
+    });
+  });
+
+  describe("Textarea Selectors", () => {
+    it("should provide textarea selectors", async () => {
+      const { TEXTAREA_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      expect(Array.isArray(TEXTAREA_SELECTORS)).toBe(true);
+      expect(TEXTAREA_SELECTORS.length).toBeGreaterThan(0);
+    });
+
+    it("prioritizes accessibility selectors", async () => {
+      const { TEXTAREA_SELECTORS } = await import("../../utils/puppeteer-logic.js");
+
+      // First selectors should include aria-label
+      const hasAriaLabelFirst = TEXTAREA_SELECTORS.slice(0, 4).some((s) =>
+        s.includes("aria-label"),
+      );
+      expect(hasAriaLabelFirst).toBe(true);
+    });
+
+    it("provides combined selector string via getTextareaSelector()", async () => {
+      const { getTextareaSelector, TEXTAREA_SELECTORS } = await import(
+        "../../utils/puppeteer-logic.js"
+      );
+
+      const combined = getTextareaSelector();
+
+      expect(typeof combined).toBe("string");
+      expect(combined).toContain(",");
+      // Should include all selectors
+      for (const selector of TEXTAREA_SELECTORS) {
+        expect(combined).toContain(selector);
+      }
+    });
+  });
 });

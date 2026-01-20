@@ -14,6 +14,7 @@ export const TOOL_SCHEMAS = [
       "Continuing multi-turn conversations",
       "Context-aware question answering",
       "Follow-up questions",
+      "Resuming existing chat sessions via URL",
     ],
     inputSchema: {
       type: "object",
@@ -31,6 +32,27 @@ export const TOOL_SCHEMAS = [
           description:
             "Optional: ID of an existing chat to continue. If not provided, a new chat will be created.",
           examples: ["123e4567-e89b-12d3-a456-426614174000"],
+        },
+        chat_url: {
+          type: "string",
+          description:
+            "Optional: Full Perplexity chat URL to continue an existing conversation. Takes precedence over chat_id.",
+          examples: [
+            "https://www.perplexity.ai/search/abc123-def456",
+            "https://perplexity.ai/chat/xyz789",
+          ],
+        },
+        space_id: {
+          type: "string",
+          description:
+            "Optional: ID of a Perplexity Space to use for new conversations. Only applies when not using chat_id or chat_url. Enables context-specific responses within a Space.",
+          examples: ["abc123-def456"],
+        },
+        model: {
+          type: "string",
+          description:
+            "Optional: AI model to use for this conversation (e.g., 'Claude 3.5 Sonnet', 'GPT-4o'). Case-insensitive, supports partial matching. If not specified, uses the currently selected model.",
+          examples: ["Claude 3.5 Sonnet", "GPT-4o", "Sonar Large"],
         },
       },
       required: ["message"],
@@ -275,6 +297,25 @@ export const TOOL_SCHEMAS = [
           description:
             "Optional: Enable streaming response for large documentation queries (default: false).",
           examples: [true, false],
+        },
+        space_id: {
+          type: "string",
+          description:
+            "Optional: ID of a Perplexity Space to search within. Enables context-specific search within a Space.",
+          examples: ["abc123-def456"],
+        },
+        model: {
+          type: "string",
+          description:
+            "Optional: AI model to use for this search (e.g., 'Claude 3.5 Sonnet', 'GPT-4o'). Case-insensitive, supports partial matching. If not specified, uses the currently selected model.",
+          examples: ["Claude 3.5 Sonnet", "GPT-4o", "Sonar Large"],
+        },
+        research_mode: {
+          type: "string",
+          enum: ["search", "deep-research"],
+          description:
+            "Optional: Research mode - 'search' for quick answers (default), 'deep-research' for comprehensive analysis.",
+          examples: ["search", "deep-research"],
         },
       },
       required: ["query"],

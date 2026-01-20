@@ -5,7 +5,7 @@
 import type { Page } from "puppeteer";
 import type { IBrowserManager, ISearchEngine } from "../../types/index.js";
 import { logError, logInfo, logWarn } from "../../utils/logging.js";
-import { retryOperation } from "../../utils/puppeteer.js";
+import { retryOperation, sendChatMessage } from "../../utils/puppeteer.js";
 import { CONFIG } from "../config.js";
 
 export class SearchEngine implements ISearchEngine {
@@ -116,13 +116,22 @@ export class SearchEngine implements ISearchEngine {
       });
     }
 
-    // Type the query with human-like delay for Cloudflare bypass
-    // Note: Math.random() is safe here - only used for anti-detection timing, not security
-    const typeDelay = Math.floor(Math.random() * 20) + 20; // 20-40ms delay (restored for better anti-detection)
-    await page.type(selector, query, { delay: typeDelay });
-    await page.keyboard.press("Enter");
+    // Use safe input method that properly handles multiline text, special characters,
+    // and Unicode. This replaces keyboard.type() which fails with newlines (FR-001, FR-002).
+    // The sendChatMessage function sets the value directly via DOM manipulation and
+    // dispatches React-compatible events (R1, R2 from research.md).
+    const ctx = this.browserManager.getPuppeteerContext();
+    const result = await sendChatMessage(ctx, query, {
+      autoSubmit: true,
+      verifyValue: true,
+      eventTypes: ["input"],
+    });
 
-    logInfo("Search query submitted successfully");
+    if (!result.success) {
+      throw new Error(`Failed to submit search query: ${result.error}`);
+    }
+
+    logInfo(`Search query submitted successfully (${result.durationMs?.toFixed(0)}ms)`);
   }
 
   private async waitForCompleteAnswer(page: Page): Promise<string> {

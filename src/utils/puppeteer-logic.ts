@@ -3,7 +3,177 @@
  * These functions can be tested without mocking Puppeteer
  */
 
-import type { ErrorAnalysis, RecoveryContext } from "../types/index.js";
+import type { ErrorAnalysis, RecoveryContext, ResearchMode } from "../types/index.js";
+
+// ─── RESEARCH MODE SELECTORS ──────────────────────────────────────────
+/**
+ * Selectors for research mode toggle UI elements in priority order.
+ * Multiple selectors provide resilience against UI changes (FR-004).
+ */
+export const RESEARCH_MODE_SELECTORS = {
+  /** Mode toggle container */
+  toggleContainer: [
+    '[data-testid="research-mode-toggle"]',
+    '[data-testid="mode-toggle"]',
+    '[aria-label*="research mode" i]',
+    '[aria-label*="mode toggle" i]',
+    '[class*="ResearchModeToggle"]',
+    '[class*="research-mode"]',
+    '[class*="mode-toggle"]',
+  ],
+  /** Search mode button selectors */
+  searchModeButton: [
+    '[data-testid="search-mode"]',
+    '[aria-label="Search" i]',
+    '[aria-label*="search mode" i]',
+    'button[class*="search-mode"]',
+    '[class*="SearchMode"]',
+  ],
+  /** Deep Research mode button selectors */
+  deepResearchButton: [
+    '[data-testid="deep-research-mode"]',
+    '[data-testid="research-mode"]',
+    '[aria-label="Deep Research" i]',
+    '[aria-label*="deep research" i]',
+    '[aria-label*="comprehensive" i]',
+    'button[class*="deep-research"]',
+    'button[class*="research-mode"]',
+    '[class*="DeepResearch"]',
+  ],
+  /** Active state indicator */
+  activeIndicator: [
+    '[aria-selected="true"]',
+    '[data-selected="true"]',
+    '[class*="selected"]',
+    '[class*="active"]',
+  ],
+} as const;
+
+/**
+ * Check if the current research mode matches the requested mode.
+ * Uses aria-selected attribute as primary indicator.
+ *
+ * @param ariaSelected - The aria-selected attribute value from the button
+ * @param selectedClass - Whether the element has selected/active class
+ * @returns True if the mode appears to be active
+ */
+export function isResearchModeActive(
+  ariaSelected: string | null,
+  selectedClass: boolean = false,
+): boolean {
+  // Primary check: aria-selected attribute (FR-003)
+  if (ariaSelected === "true") {
+    return true;
+  }
+
+  // Fallback: check for selected class
+  if (selectedClass) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get the appropriate selectors array for the given research mode.
+ *
+ * @param mode - The research mode to get selectors for
+ * @returns Array of CSS selectors for the mode button
+ */
+export function getResearchModeSelectors(mode: ResearchMode): readonly string[] {
+  return mode === "search"
+    ? RESEARCH_MODE_SELECTORS.searchModeButton
+    : RESEARCH_MODE_SELECTORS.deepResearchButton;
+}
+
+// ─── MODEL SWITCHING SELECTORS ────────────────────────────────────────
+/**
+ * Selectors for model switching UI elements in priority order.
+ * Multiple selectors provide resilience against UI changes (FR-002).
+ */
+export const MODEL_SELECTORS = {
+  /** Dropdown trigger button selectors */
+  dropdownTrigger: [
+    '[data-testid="model-selector"]',
+    '[aria-label*="model" i]',
+    '[aria-label*="Model" i]',
+    'button[class*="model"]',
+    '[class*="ModelSelector"]',
+    '[class*="model-selector"]',
+    // Fallback: look for dropdown near the input area
+    'button[aria-haspopup="listbox"]',
+    'button[aria-haspopup="menu"]',
+  ],
+  /** Dropdown options container selectors */
+  optionsContainer: [
+    '[role="listbox"]',
+    '[role="menu"]',
+    '[data-testid="model-options"]',
+    '[class*="dropdown-content"]',
+    '[class*="ModelList"]',
+    '[class*="model-list"]',
+  ],
+  /** Individual model option selectors */
+  optionItem: [
+    '[role="option"]',
+    '[role="menuitem"]',
+    '[data-testid="model-option"]',
+    '[class*="model-item"]',
+    '[class*="ModelItem"]',
+  ],
+  /** Current selection indicator */
+  currentSelection: [
+    '[aria-selected="true"]',
+    '[data-selected="true"]',
+    '[class*="selected"]',
+    '[class*="active"]',
+  ],
+} as const;
+
+/**
+ * Normalize model name for comparison by:
+ * - Converting to lowercase
+ * - Removing extra whitespace
+ * - Trimming leading/trailing whitespace
+ *
+ * @param modelName - The model name to normalize
+ * @returns Normalized model name string
+ */
+export function normalizeModelName(modelName: string): string {
+  return modelName.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Check if a model option matches the requested model name.
+ * Supports:
+ * - Exact match (case-insensitive)
+ * - Partial match (e.g., "Claude" matches "Claude 3.5 Sonnet")
+ *
+ * @param optionText - The text content of the model option
+ * @param requestedModel - The model name requested by the user
+ * @returns True if the option matches the requested model
+ */
+export function matchesModelName(optionText: string, requestedModel: string): boolean {
+  const normalizedOption = normalizeModelName(optionText);
+  const normalizedRequest = normalizeModelName(requestedModel);
+
+  // Exact match
+  if (normalizedOption === normalizedRequest) {
+    return true;
+  }
+
+  // Partial match: option contains the request (e.g., "claude 3.5 sonnet" contains "claude")
+  if (normalizedOption.includes(normalizedRequest)) {
+    return true;
+  }
+
+  // Partial match: request contains the option (less common but supported)
+  if (normalizedRequest.includes(normalizedOption)) {
+    return true;
+  }
+
+  return false;
+}
 
 /**
  * Determine recovery level based on error and context
@@ -269,4 +439,91 @@ export function isNavigationFailure(url: string, expectedUrl?: string): boolean 
   }
 
   return false;
+}
+
+// ─── SUBMIT BUTTON SELECTORS ──────────────────────────────────────────
+
+/**
+ * Submit button selectors in priority order.
+ * Multiple selectors provide resilience against UI changes (FR-005).
+ *
+ * Priority reasoning:
+ * 1. Accessibility attributes (aria-label) - most stable, required for a11y
+ * 2. Test hooks (data-testid) - intentionally stable for testing
+ * 3. Semantic HTML (type="submit") - standards-based
+ * 4. Class-based - least stable, last resort
+ */
+export const SUBMIT_BUTTON_SELECTORS = [
+  // Accessibility-first (most stable)
+  '[aria-label*="submit" i]',
+  '[aria-label*="send" i]',
+  '[aria-label*="Submit"]',
+  '[aria-label*="Send"]',
+
+  // Test hooks (intentionally stable)
+  '[data-testid*="submit"]',
+  '[data-testid*="send"]',
+  '[data-testid="submit-button"]',
+  '[data-testid="send-button"]',
+
+  // Semantic HTML (standards-based)
+  'button[type="submit"]',
+  'form button:last-of-type', // Common pattern: submit is last button in form
+
+  // Class-based fallbacks (least stable)
+  'button[class*="submit"]',
+  'button[class*="send"]',
+  'button[class*="Submit"]',
+  'button[class*="Send"]',
+  'button svg[class*="arrow"]', // SVG arrow icon fallback for Perplexity
+] as const;
+
+/**
+ * Type for submit button selector tuple.
+ */
+export type SubmitButtonSelector = (typeof SUBMIT_BUTTON_SELECTORS)[number];
+
+/**
+ * Textarea selectors for chat input detection.
+ * Multiple selectors provide resilience against UI changes.
+ */
+export const TEXTAREA_SELECTORS = [
+  // Accessibility-first
+  'textarea[aria-label*="search" i]',
+  'textarea[aria-label*="ask" i]',
+  'textarea[aria-label*="message" i]',
+  'textarea[aria-label*="query" i]',
+
+  // Test hooks
+  'textarea[data-testid*="search"]',
+  'textarea[data-testid*="input"]',
+  'textarea[data-testid*="query"]',
+
+  // Placeholder-based
+  'textarea[placeholder*="search" i]',
+  'textarea[placeholder*="ask" i]',
+
+  // Generic fallbacks
+  'textarea',
+] as const;
+
+/**
+ * Type for textarea selector tuple.
+ */
+export type TextareaSelector = (typeof TEXTAREA_SELECTORS)[number];
+
+/**
+ * Get combined submit button selector string for waitForSelector.
+ * @returns CSS selector string with all submit button selectors joined by comma
+ */
+export function getSubmitButtonSelector(): string {
+  return SUBMIT_BUTTON_SELECTORS.join(', ');
+}
+
+/**
+ * Get combined textarea selector string for waitForSelector.
+ * @returns CSS selector string with all textarea selectors joined by comma
+ */
+export function getTextareaSelector(): string {
+  return TEXTAREA_SELECTORS.join(', ');
 }
