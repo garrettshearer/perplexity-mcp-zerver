@@ -3,7 +3,88 @@
  * These functions can be tested without mocking Puppeteer
  */
 
-import type { ErrorAnalysis, RecoveryContext } from "../types/index.js";
+import type { ErrorAnalysis, RecoveryContext, ResearchMode } from "../types/index.js";
+
+// ─── RESEARCH MODE SELECTORS ──────────────────────────────────────────
+/**
+ * Selectors for research mode toggle UI elements in priority order.
+ * Multiple selectors provide resilience against UI changes (FR-004).
+ */
+export const RESEARCH_MODE_SELECTORS = {
+  /** Mode toggle container */
+  toggleContainer: [
+    '[data-testid="research-mode-toggle"]',
+    '[data-testid="mode-toggle"]',
+    '[aria-label*="research mode" i]',
+    '[aria-label*="mode toggle" i]',
+    '[class*="ResearchModeToggle"]',
+    '[class*="research-mode"]',
+    '[class*="mode-toggle"]',
+  ],
+  /** Search mode button selectors */
+  searchModeButton: [
+    '[data-testid="search-mode"]',
+    '[aria-label="Search" i]',
+    '[aria-label*="search mode" i]',
+    'button[class*="search-mode"]',
+    '[class*="SearchMode"]',
+  ],
+  /** Deep Research mode button selectors */
+  deepResearchButton: [
+    '[data-testid="deep-research-mode"]',
+    '[data-testid="research-mode"]',
+    '[aria-label="Deep Research" i]',
+    '[aria-label*="deep research" i]',
+    '[aria-label*="comprehensive" i]',
+    'button[class*="deep-research"]',
+    'button[class*="research-mode"]',
+    '[class*="DeepResearch"]',
+  ],
+  /** Active state indicator */
+  activeIndicator: [
+    '[aria-selected="true"]',
+    '[data-selected="true"]',
+    '[class*="selected"]',
+    '[class*="active"]',
+  ],
+} as const;
+
+/**
+ * Check if the current research mode matches the requested mode.
+ * Uses aria-selected attribute as primary indicator.
+ *
+ * @param ariaSelected - The aria-selected attribute value from the button
+ * @param selectedClass - Whether the element has selected/active class
+ * @returns True if the mode appears to be active
+ */
+export function isResearchModeActive(
+  ariaSelected: string | null,
+  selectedClass: boolean = false,
+): boolean {
+  // Primary check: aria-selected attribute (FR-003)
+  if (ariaSelected === "true") {
+    return true;
+  }
+
+  // Fallback: check for selected class
+  if (selectedClass) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get the appropriate selectors array for the given research mode.
+ *
+ * @param mode - The research mode to get selectors for
+ * @returns Array of CSS selectors for the mode button
+ */
+export function getResearchModeSelectors(mode: ResearchMode): readonly string[] {
+  return mode === "search"
+    ? RESEARCH_MODE_SELECTORS.searchModeButton
+    : RESEARCH_MODE_SELECTORS.deepResearchButton;
+}
 
 // ─── MODEL SWITCHING SELECTORS ────────────────────────────────────────
 /**

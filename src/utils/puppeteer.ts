@@ -547,6 +547,155 @@ async function waitForModelOptions(
   return null;
 }
 
+// ─── RESEARCH MODE SWITCHING ──────────────────────────────────────────
+
+/**
+ * Result of a research mode switch operation
+ */
+export interface ResearchModeResult {
+  success: boolean;
+  mode: import("../types/index.js").ResearchMode;
+  wasAlreadyActive: boolean;
+}
+
+/**
+ * Set the research mode for Perplexity searches.
+ * Switches between "search" (fast answers) and "deep-research" (comprehensive analysis).
+ *
+ * Follows the same pattern as switchModel() with:
+ * - State detection via aria-selected (FR-003)
+ * - Early return optimization when mode already active (SC-003)
+ * - Fallback selectors for resilience (FR-004)
+ * - 500ms UI stabilization delay (per spec)
+ * - Graceful degradation when toggle not found (FR-007)
+ *
+ * @param ctx - Puppeteer context with browser/page instances
+ * @param mode - Target research mode: 'search' or 'deep-research'
+ * @returns Result object with success status, mode, and whether it was already active
+ */
+export async function setResearchMode(
+  ctx: PuppeteerContext,
+  mode: import("../types/index.js").ResearchMode,
+): Promise<ResearchModeResult> {
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  ctx.log("info", `Attempting to set research mode to: ${mode}`);
+
+  // Import helper functions from puppeteer-logic
+  const { RESEARCH_MODE_SELECTORS, isResearchModeActive, getResearchModeSelectors } = await import(
+    "./puppeteer-logic.js"
+  );
+
+  // Step 1: Get the appropriate selectors for the target mode
+  const modeSelectors = getResearchModeSelectors(mode);
+
+  // Step 2: Check if mode is already active (optimization for SC-003)
+  const isAlreadyActive = await checkResearchModeActive(page, modeSelectors);
+  if (isAlreadyActive) {
+    ctx.log("info", `Research mode "${mode}" is already active`);
+    return {
+      success: true,
+      mode,
+      wasAlreadyActive: true,
+    };
+  }
+
+  // Step 3: Find and click the mode button using fallback selectors (FR-004)
+  const clicked = await clickResearchModeButton(page, modeSelectors, ctx);
+  if (!clicked) {
+    // Graceful degradation: warn and proceed (FR-007)
+    ctx.log(
+      "warn",
+      `Research mode toggle element not found. Proceeding with current mode. Selectors tried: ${modeSelectors.join(", ")}`,
+    );
+    return {
+      success: false,
+      mode,
+      wasAlreadyActive: false,
+    };
+  }
+
+  // Step 4: Wait for UI stabilization (500ms per spec)
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  ctx.log("info", `Successfully set research mode to: ${mode}`);
+  return {
+    success: true,
+    mode,
+    wasAlreadyActive: false,
+  };
+}
+
+/**
+ * Check if the target research mode button is already active
+ */
+async function checkResearchModeActive(
+  page: import("puppeteer").Page,
+  modeSelectors: readonly string[],
+): Promise<boolean> {
+  try {
+    // Import helper function
+    const { isResearchModeActive, RESEARCH_MODE_SELECTORS } = await import("./puppeteer-logic.js");
+
+    // Try each selector for the mode button
+    for (const selector of modeSelectors) {
+      const element = await page.$(selector);
+      if (element) {
+        // Check aria-selected attribute (FR-003)
+        const ariaSelected = await page.evaluate(
+          (el) => el.getAttribute("aria-selected"),
+          element,
+        );
+
+        // Check for selected/active class as fallback
+        const hasSelectedClass = await page.evaluate(
+          (el) =>
+            el.classList.contains("selected") ||
+            el.classList.contains("active") ||
+            el.getAttribute("data-selected") === "true",
+          element,
+        );
+
+        if (isResearchModeActive(ariaSelected, hasSelectedClass)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Click the research mode button using fallback selectors
+ */
+async function clickResearchModeButton(
+  page: import("puppeteer").Page,
+  modeSelectors: readonly string[],
+  ctx: PuppeteerContext,
+): Promise<boolean> {
+  // Try each selector in priority order (FR-004)
+  for (const selector of modeSelectors) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        await element.click();
+        ctx.log("info", `Clicked research mode button using selector: ${selector}`);
+        return true;
+      }
+    } catch {
+      // Continue to next selector
+    }
+  }
+  return false;
+}
+
 export async function setupBrowserEvasion(ctx: PuppeteerContext) {
   const { page } = ctx;
   if (!page) return;

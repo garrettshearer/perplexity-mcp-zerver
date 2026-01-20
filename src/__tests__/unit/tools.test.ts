@@ -52,6 +52,8 @@ vi.mock("../../utils/extraction.js", () => ({
 vi.mock("../../utils/puppeteer.js", () => ({
   openPerplexityChat: vi.fn().mockResolvedValue(undefined),
   openPerplexitySpace: vi.fn().mockResolvedValue(undefined),
+  switchModel: vi.fn().mockResolvedValue({ success: true, selectedModel: "Default", wasAlreadySelected: false }),
+  setResearchMode: vi.fn().mockResolvedValue({ success: true, mode: "search", wasAlreadyActive: false }),
 }));
 
 // Mock fetch utilities

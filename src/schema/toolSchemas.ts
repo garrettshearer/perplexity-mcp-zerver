@@ -310,6 +310,13 @@ export const TOOL_SCHEMAS = [
             "Optional: AI model to use for this search (e.g., 'Claude 3.5 Sonnet', 'GPT-4o'). Case-insensitive, supports partial matching. If not specified, uses the currently selected model.",
           examples: ["Claude 3.5 Sonnet", "GPT-4o", "Sonar Large"],
         },
+        research_mode: {
+          type: "string",
+          enum: ["search", "deep-research"],
+          description:
+            "Optional: Research mode - 'search' for quick answers (default), 'deep-research' for comprehensive analysis.",
+          examples: ["search", "deep-research"],
+        },
       },
       required: ["query"],
     },
