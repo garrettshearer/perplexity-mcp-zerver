@@ -45,6 +45,49 @@ Persistent conversations with context history
 
 ---
 
+## Model Switching
+
+Switch between AI models (Claude, GPT-4o, Sonar, etc.) when making queries. Works with both `search` and `chat_perplexity` tools.
+
+### Usage Examples
+
+**Specify a model for search:**
+```json
+{
+  "tool": "search",
+  "arguments": {
+    "query": "Explain quantum computing",
+    "model": "Claude 3.5 Sonnet"
+  }
+}
+```
+
+**Specify a model for chat:**
+```json
+{
+  "tool": "chat_perplexity",
+  "arguments": {
+    "message": "What are the benefits of TypeScript?",
+    "model": "GPT-4o"
+  }
+}
+```
+
+### Supported Features
+
+- **Case-insensitive matching**: `"claude"`, `"Claude"`, `"CLAUDE"` all work
+- **Partial matching**: `"Claude"` matches `"Claude 3.5 Sonnet"`
+- **Default behavior**: Omit `model` to use currently selected model
+- **Clear errors**: Invalid model names return available options
+
+### Available Models
+
+Models depend on your Perplexity account:
+- **Free**: Sonar, Sonar Large
+- **Pro**: Claude 3.5 Sonnet, GPT-4o, Gemini, and more
+
+---
+
 ## Getting Started
 
 ### Prerequisites

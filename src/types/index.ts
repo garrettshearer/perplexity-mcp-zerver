@@ -12,6 +12,7 @@ export type {
   IBrowserManager,
   PageContentResult,
   RecursiveFetchResult,
+  ModelSwitchResult,
 } from "./browser.js";
 
 // ─── DATABASE & CHAT TYPES ────────────────────────────────────────────

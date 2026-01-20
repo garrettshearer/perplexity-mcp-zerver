@@ -3,7 +3,7 @@
  */
 
 import type { PuppeteerContext } from "../types/index.js";
-import { openPerplexitySpace } from "../utils/puppeteer.js";
+import { openPerplexitySpace, switchModel } from "../utils/puppeteer.js";
 
 /**
  * Handles web search with configurable detail levels and optional streaming
@@ -14,15 +14,21 @@ export default async function search(
     detail_level?: "brief" | "normal" | "detailed";
     stream?: boolean;
     space_id?: string;
+    model?: string;
   },
   ctx: PuppeteerContext,
   performSearch: (prompt: string, ctx: PuppeteerContext) => Promise<string>,
 ): Promise<string | AsyncGenerator<string, void, unknown>> {
-  const { query, detail_level = "normal", stream = false, space_id } = args;
+  const { query, detail_level = "normal", stream = false, space_id, model } = args;
 
   // T036: Navigate to space if space_id is provided (before search)
   if (space_id) {
     await openPerplexitySpace(ctx, space_id);
+  }
+
+  // T014/FR-009: Switch model if specified (before executing search)
+  if (model) {
+    await switchModel(ctx, model);
   }
 
   let prompt = query;

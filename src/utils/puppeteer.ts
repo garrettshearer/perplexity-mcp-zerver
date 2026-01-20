@@ -1,10 +1,10 @@
+import { promises as fs } from "node:fs";
+import type { Browser, Page } from "puppeteer";
 /**
  * Puppeteer utility functions for browser automation, navigation, and recovery
  */
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import type { Browser, Page } from "puppeteer";
-import { promises as fs } from "fs";
 import { CONFIG } from "../server/config.js";
 import type { PuppeteerContext, RecoveryContext } from "../types/index.js";
 import { logError, logInfo, logWarn } from "./logging.js";
@@ -35,9 +35,8 @@ export async function initializeBrowser(ctx: PuppeteerContext) {
 
     // Remove GPU-disabling flags when in non-headless mode (needed for rendering)
     if (headless === false) {
-      browserArgs = browserArgs.filter(arg =>
-        !arg.includes('--disable-gpu') &&
-        !arg.includes('--disable-accelerated-2d-canvas')
+      browserArgs = browserArgs.filter(
+        (arg) => !arg.includes("--disable-gpu") && !arg.includes("--disable-accelerated-2d-canvas"),
       );
     }
 
@@ -264,7 +263,9 @@ export async function openPerplexityChat(ctx: PuppeteerContext, chatId: string):
       visible: true,
     });
   } catch {
-    throw new Error("Chat page loaded but input area not found: The page may not have loaded correctly");
+    throw new Error(
+      "Chat page loaded but input area not found: The page may not have loaded correctly",
+    );
   }
 
   ctx.log("info", `Successfully opened chat: ${chatId}`);
@@ -309,7 +310,9 @@ export async function openPerplexitySpace(ctx: PuppeteerContext, spaceId: string
   if (response) {
     const status = response.status();
     if (status === 404) {
-      throw new Error(`Space not found: The space '${spaceId}' does not exist or has been deleted. Please verify the space ID is correct.`);
+      throw new Error(
+        `Space not found: The space '${spaceId}' does not exist or has been deleted. Please verify the space ID is correct.`,
+      );
     }
     if (!response.ok()) {
       throw new Error(`Failed to load space: HTTP ${status}`);
@@ -319,7 +322,9 @@ export async function openPerplexitySpace(ctx: PuppeteerContext, spaceId: string
   // T026: Verify we're still on Perplexity (detect auth redirects)
   const currentUrl = page.url();
   if (!currentUrl.includes("perplexity.ai")) {
-    throw new Error("Authentication required: Redirected away from Perplexity. Please check that you are logged in.");
+    throw new Error(
+      "Authentication required: Redirected away from Perplexity. Please check that you are logged in.",
+    );
   }
 
   // T027: Wait for textarea with 10 second timeout
@@ -332,11 +337,214 @@ export async function openPerplexitySpace(ctx: PuppeteerContext, spaceId: string
       visible: true,
     });
   } catch {
-    throw new Error("Space page loaded but input area not found: The page may not have loaded correctly. Try refreshing or check if the space is accessible.");
+    throw new Error(
+      "Space page loaded but input area not found: The page may not have loaded correctly. Try refreshing or check if the space is accessible.",
+    );
   }
 
   // T028: Log success
   ctx.log("info", `Successfully opened space: ${spaceId}`);
+}
+
+/**
+ * Switch to a specific AI model in the Perplexity UI.
+ *
+ * Opens the model selector dropdown, finds the requested model (case-insensitive),
+ * and selects it. Supports partial matching (e.g., "Claude" matches "Claude 3.5 Sonnet").
+ *
+ * @param ctx - The Puppeteer context with initialized page
+ * @param requestedModel - The model name to switch to (case-insensitive, partial match supported)
+ * @returns ModelSwitchResult with success status and details
+ * @throws Error if:
+ *   - Page not initialized
+ *   - Dropdown cannot be opened (likely not logged in)
+ *   - Model options don't load within timeout (5s)
+ *   - Requested model not found in dropdown
+ */
+export async function switchModel(
+  ctx: PuppeteerContext,
+  requestedModel: string,
+): Promise<import("../types/index.js").ModelSwitchResult> {
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  ctx.log("info", `Attempting to switch model to: ${requestedModel}`);
+
+  // Import helper functions from puppeteer-logic
+  const { MODEL_SELECTORS, normalizeModelName, matchesModelName } = await import(
+    "./puppeteer-logic.js"
+  );
+
+  // Step 1: Check if model is already selected (optimization for US3)
+  const currentSelection = await getCurrentModelSelection(page, MODEL_SELECTORS);
+  if (currentSelection && matchesModelName(currentSelection, requestedModel)) {
+    ctx.log("info", `Model "${requestedModel}" is already selected`);
+    return {
+      success: true,
+      selectedModel: currentSelection,
+      wasAlreadySelected: true,
+    };
+  }
+
+  // Step 2: Find and click the dropdown trigger
+  const dropdownOpened = await openModelDropdown(page, MODEL_SELECTORS, ctx);
+  if (!dropdownOpened) {
+    throw new Error(
+      "Could not open model selector dropdown. Please ensure you are logged in and on a page with the model selector.",
+    );
+  }
+
+  // Step 3: Wait for options to appear (5s timeout per FR-004)
+  const options = await waitForModelOptions(page, MODEL_SELECTORS, 5000);
+  if (!options || options.length === 0) {
+    throw new Error("Model selector options did not load within 5000ms.");
+  }
+
+  // Step 4: Find matching model option (case-insensitive)
+  const availableModels = options.map((opt) => opt.text);
+  const matchingOption = options.find((opt) => matchesModelName(opt.text, requestedModel));
+
+  if (!matchingOption) {
+    // Close dropdown before throwing error
+    await page.keyboard.press("Escape").catch(() => {});
+    throw new Error(
+      `Model "${requestedModel}" not found in dropdown options. Available models: ${availableModels.join(", ")}`,
+    );
+  }
+
+  // Step 5: Click the matching option
+  try {
+    await matchingOption.element.click();
+    ctx.log("info", `Successfully selected model: ${matchingOption.text}`);
+
+    // Small delay to let UI update
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    return {
+      success: true,
+      selectedModel: matchingOption.text,
+      wasAlreadySelected: false,
+    };
+  } catch (clickError) {
+    throw new Error(
+      `Failed to click model option "${matchingOption.text}": ${clickError instanceof Error ? clickError.message : String(clickError)}`,
+    );
+  }
+}
+
+/**
+ * Get the currently selected model from the dropdown trigger
+ */
+async function getCurrentModelSelection(
+  page: import("puppeteer").Page,
+  selectors: typeof import("./puppeteer-logic.js").MODEL_SELECTORS,
+): Promise<string | null> {
+  try {
+    // Try each dropdown trigger selector
+    for (const selector of selectors.dropdownTrigger) {
+      const element = await page.$(selector);
+      if (element) {
+        const text = await page.evaluate((el) => el.textContent?.trim() || "", element);
+        if (text && text.length > 0) {
+          return text;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open the model selector dropdown
+ */
+async function openModelDropdown(
+  page: import("puppeteer").Page,
+  selectors: typeof import("./puppeteer-logic.js").MODEL_SELECTORS,
+  ctx: PuppeteerContext,
+): Promise<boolean> {
+  // Try each dropdown trigger selector
+  for (const selector of selectors.dropdownTrigger) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        await element.click();
+        // Wait a bit for dropdown to open
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        ctx.log("info", `Clicked dropdown trigger using selector: ${selector}`);
+        return true;
+      }
+    } catch {
+      // Continue to next selector
+    }
+  }
+  return false;
+}
+
+/**
+ * Wait for model options to appear and return them
+ */
+async function waitForModelOptions(
+  page: import("puppeteer").Page,
+  selectors: typeof import("./puppeteer-logic.js").MODEL_SELECTORS,
+  timeout: number,
+): Promise<Array<{ text: string; element: import("puppeteer").ElementHandle }> | null> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    // Try to find options container first
+    for (const containerSelector of selectors.optionsContainer) {
+      const container = await page.$(containerSelector);
+      if (container) {
+        // Look for option items within container or globally
+        for (const optionSelector of selectors.optionItem) {
+          const options = await page.$$(optionSelector);
+          if (options.length > 0) {
+            // Extract text from each option
+            const optionsWithText = await Promise.all(
+              options.map(async (el) => ({
+                text: await page.evaluate((e) => e.textContent?.trim() || "", el),
+                element: el,
+              })),
+            );
+            // Filter out empty options
+            const validOptions = optionsWithText.filter((opt) => opt.text.length > 0);
+            if (validOptions.length > 0) {
+              return validOptions;
+            }
+          }
+        }
+      }
+    }
+
+    // Also try option selectors directly (without container)
+    for (const optionSelector of selectors.optionItem) {
+      const options = await page.$$(optionSelector);
+      if (options.length > 1) {
+        // More than 1 to ensure it's the dropdown, not current selection
+        const optionsWithText = await Promise.all(
+          options.map(async (el) => ({
+            text: await page.evaluate((e) => e.textContent?.trim() || "", el),
+            element: el,
+          })),
+        );
+        const validOptions = optionsWithText.filter((opt) => opt.text.length > 0);
+        if (validOptions.length > 1) {
+          return validOptions;
+        }
+      }
+    }
+
+    // Wait a bit before next check
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  return null;
 }
 
 export async function setupBrowserEvasion(ctx: PuppeteerContext) {
@@ -368,11 +576,11 @@ export async function setupBrowserEvasion(ctx: PuppeteerContext) {
             READY_TO_RUN: "ready_to_run",
             RUNNING: "running",
           },
-          getDetails: () => { },
-          getIsInstalled: () => { },
-          installState: () => { },
+          getDetails: () => {},
+          getIsInstalled: () => {},
+          installState: () => {},
           isInstalled: false,
-          runningState: () => { },
+          runningState: () => {},
         },
         runtime: {
           OnInstalledReason: {
@@ -410,12 +618,12 @@ export async function setupBrowserEvasion(ctx: PuppeteerContext) {
             UPDATE_AVAILABLE: "update_available",
           },
           connect: () => ({
-            postMessage: () => { },
+            postMessage: () => {},
             onMessage: {
-              addListener: () => { },
-              removeListener: () => { },
+              addListener: () => {},
+              removeListener: () => {},
             },
-            disconnect: () => { },
+            disconnect: () => {},
           }),
         },
       };
@@ -628,7 +836,7 @@ export async function recoveryProcedure(ctx: PuppeteerContext, error?: Error): P
           }
           ctx.setPage(null);
         }
-        if (ctx.browser && ctx.browser.isConnected()) {
+        if (ctx.browser?.isConnected()) {
           try {
             const page = await ctx.browser.newPage();
             ctx.setPage(page);
@@ -649,8 +857,6 @@ export async function recoveryProcedure(ctx: PuppeteerContext, error?: Error): P
           return await recoveryProcedure(ctx, new Error("Fallback recovery: browser disconnected"));
         }
         break;
-
-      case 3: // Full restart
       default:
         logInfo("Performing full browser restart (Recovery Level 3)");
         if (ctx.page) {
