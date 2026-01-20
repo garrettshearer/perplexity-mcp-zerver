@@ -48,6 +48,12 @@ export const TOOL_SCHEMAS = [
             "Optional: ID of a Perplexity Space to use for new conversations. Only applies when not using chat_id or chat_url. Enables context-specific responses within a Space.",
           examples: ["abc123-def456"],
         },
+        model: {
+          type: "string",
+          description:
+            "Optional: AI model to use for this conversation (e.g., 'Claude 3.5 Sonnet', 'GPT-4o'). Case-insensitive, supports partial matching. If not specified, uses the currently selected model.",
+          examples: ["Claude 3.5 Sonnet", "GPT-4o", "Sonar Large"],
+        },
       },
       required: ["message"],
     },
@@ -297,6 +303,12 @@ export const TOOL_SCHEMAS = [
           description:
             "Optional: ID of a Perplexity Space to search within. Enables context-specific search within a Space.",
           examples: ["abc123-def456"],
+        },
+        model: {
+          type: "string",
+          description:
+            "Optional: AI model to use for this search (e.g., 'Claude 3.5 Sonnet', 'GPT-4o'). Case-insensitive, supports partial matching. If not specified, uses the currently selected model.",
+          examples: ["Claude 3.5 Sonnet", "GPT-4o", "Sonar Large"],
         },
       },
       required: ["query"],

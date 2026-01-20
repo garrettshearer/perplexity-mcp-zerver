@@ -158,3 +158,18 @@ export interface RecursiveFetchResult {
   pagesExplored: number;
   content: PageContentResult[];
 }
+
+// ─── MODEL SWITCHING TYPES ────────────────────────────────────────────
+/**
+ * Result of a model switch operation
+ */
+export interface ModelSwitchResult {
+  /** Whether the model switch was successful */
+  success: boolean;
+  /** The model that was selected */
+  selectedModel: string;
+  /** Whether the model was already selected (no switch needed) */
+  wasAlreadySelected: boolean;
+  /** List of available models in the dropdown (populated on error) */
+  availableModels?: string[];
+}
