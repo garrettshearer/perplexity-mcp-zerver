@@ -51,6 +51,7 @@ vi.mock("../../utils/extraction.js", () => ({
 // Mock puppeteer utilities
 vi.mock("../../utils/puppeteer.js", () => ({
   openPerplexityChat: vi.fn().mockResolvedValue(undefined),
+  openPerplexitySpace: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock fetch utilities
@@ -449,6 +450,162 @@ describe("Tools", () => {
       );
       expect(mockPerformSearch).toHaveBeenCalledWith(expect.stringContaining("React 16"), mockCtx);
       expect(result).toBe("Deprecation check with tech context result");
+    });
+  });
+
+  // Phase 4: User Story 2 - Search with space_id
+  describe("search with space_id", () => {
+    // T030: search with space_id calls openPerplexitySpace before performSearch
+    it("should call openPerplexitySpace when space_id is provided", async () => {
+      const { default: search } = await import("../../tools/search.js");
+      const { openPerplexitySpace } = await import("../../utils/puppeteer.js");
+
+      const mockPerformSearch = vi.fn().mockResolvedValue("Search result in space");
+
+      const args = { query: "test query", space_id: "my-test-space" };
+      const result = await search(args, mockCtx, mockPerformSearch);
+
+      // Should navigate to space first
+      expect(openPerplexitySpace).toHaveBeenCalledWith(mockCtx, "my-test-space");
+      // Then perform search
+      expect(mockPerformSearch).toHaveBeenCalled();
+      expect(result).toBe("Search result in space");
+    });
+
+    // T031: search without space_id does NOT call openPerplexitySpace
+    it("should NOT call openPerplexitySpace when space_id is not provided", async () => {
+      const { default: search } = await import("../../tools/search.js");
+      const { openPerplexitySpace } = await import("../../utils/puppeteer.js");
+      vi.mocked(openPerplexitySpace).mockClear();
+
+      const mockPerformSearch = vi.fn().mockResolvedValue("Normal search result");
+
+      const args = { query: "test query" };
+      const result = await search(args, mockCtx, mockPerformSearch);
+
+      // Should NOT navigate to space
+      expect(openPerplexitySpace).not.toHaveBeenCalled();
+      expect(mockPerformSearch).toHaveBeenCalled();
+      expect(result).toBe("Normal search result");
+    });
+
+    // T032: search space navigation error propagates (search not attempted)
+    it("should propagate space navigation errors without attempting search", async () => {
+      const { default: search } = await import("../../tools/search.js");
+      const { openPerplexitySpace } = await import("../../utils/puppeteer.js");
+      vi.mocked(openPerplexitySpace).mockRejectedValueOnce(new Error("Space not found: test-space"));
+
+      const mockPerformSearch = vi.fn().mockResolvedValue("Should not reach here");
+
+      const args = { query: "test query", space_id: "test-space" };
+
+      await expect(search(args, mockCtx, mockPerformSearch)).rejects.toThrow("Space not found");
+      expect(mockPerformSearch).not.toHaveBeenCalled();
+    });
+  });
+
+  // Phase 5: User Story 3 - Chat with space_id
+  describe("chat with space_id", () => {
+    // T038: new chat with space_id calls openPerplexitySpace
+    it("should call openPerplexitySpace for new chat when space_id is provided", async () => {
+      const { default: chatPerplexity } = await import("../../tools/chatPerplexity.js");
+      const { openPerplexitySpace } = await import("../../utils/puppeteer.js");
+      vi.mocked(openPerplexitySpace).mockClear();
+
+      mockGetChatHistory.mockReturnValue([]);
+      const mockPerformSearch = vi.fn().mockResolvedValue("Chat response in space");
+
+      const args = { message: "Hello in space!", space_id: "my-space" };
+      const result = await chatPerplexity(
+        args,
+        mockCtx,
+        mockPerformSearch,
+        mockGetChatHistory,
+        mockSaveChatMessage,
+      );
+
+      // For new chats with space_id, should navigate to space
+      expect(openPerplexitySpace).toHaveBeenCalledWith(mockCtx, "my-space");
+      expect(mockPerformSearch).toHaveBeenCalled();
+      expect(result).toBe("Chat response in space");
+    });
+
+    // T039: existing chat with chat_id ignores space_id
+    it("should ignore space_id when chat_id is provided", async () => {
+      const { default: chatPerplexity } = await import("../../tools/chatPerplexity.js");
+      const { openPerplexityChat, openPerplexitySpace } = await import("../../utils/puppeteer.js");
+      vi.mocked(openPerplexitySpace).mockClear();
+      vi.mocked(openPerplexityChat).mockClear();
+
+      mockGetChatHistory.mockReturnValue([]);
+      const mockPerformSearch = vi.fn().mockResolvedValue("Chat response");
+
+      const args = { message: "Hello", chat_id: "existing-chat", space_id: "my-space" };
+      const result = await chatPerplexity(
+        args,
+        mockCtx,
+        mockPerformSearch,
+        mockGetChatHistory,
+        mockSaveChatMessage,
+      );
+
+      // Should use chat_id (open chat), NOT space_id
+      expect(openPerplexityChat).toHaveBeenCalledWith(mockCtx, "existing-chat");
+      expect(openPerplexitySpace).not.toHaveBeenCalled();
+      expect(result).toBe("Chat response");
+    });
+
+    // T040: existing chat with chat_url ignores space_id
+    it("should ignore space_id when chat_url is provided", async () => {
+      const { default: chatPerplexity } = await import("../../tools/chatPerplexity.js");
+      const { openPerplexityChat, openPerplexitySpace } = await import("../../utils/puppeteer.js");
+      vi.mocked(openPerplexitySpace).mockClear();
+      vi.mocked(openPerplexityChat).mockClear();
+
+      mockGetChatHistory.mockReturnValue([]);
+      const mockPerformSearch = vi.fn().mockResolvedValue("Chat response from URL");
+
+      const args = {
+        message: "Hello",
+        chat_url: "https://perplexity.ai/search/existing-chat-url",
+        space_id: "my-space",
+      };
+      const result = await chatPerplexity(
+        args,
+        mockCtx,
+        mockPerformSearch,
+        mockGetChatHistory,
+        mockSaveChatMessage,
+      );
+
+      // Should use chat_url (open chat), NOT space_id
+      expect(openPerplexityChat).toHaveBeenCalled();
+      expect(openPerplexitySpace).not.toHaveBeenCalled();
+      expect(result).toBe("Chat response from URL");
+    });
+
+    // T041: chat without space_id works as before
+    it("should work without space_id (backward compatibility)", async () => {
+      const { default: chatPerplexity } = await import("../../tools/chatPerplexity.js");
+      const { openPerplexitySpace } = await import("../../utils/puppeteer.js");
+      vi.mocked(openPerplexitySpace).mockClear();
+
+      mockGetChatHistory.mockReturnValue([]);
+      const mockPerformSearch = vi.fn().mockResolvedValue("Normal chat response");
+
+      const args = { message: "Hello without space!" };
+      const result = await chatPerplexity(
+        args,
+        mockCtx,
+        mockPerformSearch,
+        mockGetChatHistory,
+        mockSaveChatMessage,
+      );
+
+      // Should NOT navigate to space
+      expect(openPerplexitySpace).not.toHaveBeenCalled();
+      expect(mockPerformSearch).toHaveBeenCalled();
+      expect(result).toBe("Normal chat response");
     });
   });
 });

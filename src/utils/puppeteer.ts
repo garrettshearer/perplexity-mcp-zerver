@@ -270,6 +270,75 @@ export async function openPerplexityChat(ctx: PuppeteerContext, chatId: string):
   ctx.log("info", `Successfully opened chat: ${chatId}`);
 }
 
+/**
+ * Navigate to a Perplexity Space by ID.
+ * Validates the space loads correctly by checking for chat input.
+ *
+ * @param ctx - The Puppeteer context with initialized page
+ * @param spaceId - The space ID to navigate to (non-empty string)
+ * @throws Error if:
+ *   - Page not initialized
+ *   - Space ID is empty/invalid
+ *   - Space not found (404)
+ *   - Auth redirect detected
+ *   - Selector timeout (chat input not found)
+ */
+export async function openPerplexitySpace(ctx: PuppeteerContext, spaceId: string): Promise<void> {
+  const { page } = ctx;
+
+  // T022: Validate page is initialized
+  if (!page || page.isClosed()) {
+    throw new Error("Page not initialized");
+  }
+
+  // T023: Validate space ID is not empty or whitespace
+  if (!spaceId || spaceId.trim() === "") {
+    throw new Error("Space ID is required: Please provide a valid space ID");
+  }
+
+  const spaceUrl = `https://www.perplexity.ai/spaces/${spaceId}`;
+  ctx.log("info", `Navigating to space: ${spaceUrl}`);
+
+  // T024, T025: Navigate with 30 second timeout
+  const response = await page.goto(spaceUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: CONFIG.TIMEOUT_PROFILES.navigation,
+  });
+
+  // T025: Check HTTP response status - 404 means space not found
+  if (response) {
+    const status = response.status();
+    if (status === 404) {
+      throw new Error(`Space not found: The space '${spaceId}' does not exist or has been deleted. Please verify the space ID is correct.`);
+    }
+    if (!response.ok()) {
+      throw new Error(`Failed to load space: HTTP ${status}`);
+    }
+  }
+
+  // T026: Verify we're still on Perplexity (detect auth redirects)
+  const currentUrl = page.url();
+  if (!currentUrl.includes("perplexity.ai")) {
+    throw new Error("Authentication required: Redirected away from Perplexity. Please check that you are logged in.");
+  }
+
+  // T027: Wait for textarea with 10 second timeout
+  const selectors = getSearchInputSelectors();
+  const selectorStr = selectors.join(", ");
+
+  try {
+    await page.waitForSelector(selectorStr, {
+      timeout: CONFIG.SELECTOR_TIMEOUT,
+      visible: true,
+    });
+  } catch {
+    throw new Error("Space page loaded but input area not found: The page may not have loaded correctly. Try refreshing or check if the space is accessible.");
+  }
+
+  // T028: Log success
+  ctx.log("info", `Successfully opened space: ${spaceId}`);
+}
+
 export async function setupBrowserEvasion(ctx: PuppeteerContext) {
   const { page } = ctx;
   if (!page) return;
