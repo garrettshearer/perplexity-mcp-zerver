@@ -42,6 +42,12 @@ export const TOOL_SCHEMAS = [
             "https://perplexity.ai/chat/xyz789",
           ],
         },
+        space_id: {
+          type: "string",
+          description:
+            "Optional: ID of a Perplexity Space to use for new conversations. Only applies when not using chat_id or chat_url. Enables context-specific responses within a Space.",
+          examples: ["abc123-def456"],
+        },
       },
       required: ["message"],
     },
@@ -285,6 +291,12 @@ export const TOOL_SCHEMAS = [
           description:
             "Optional: Enable streaming response for large documentation queries (default: false).",
           examples: [true, false],
+        },
+        space_id: {
+          type: "string",
+          description:
+            "Optional: ID of a Perplexity Space to search within. Enables context-specific search within a Space.",
+          examples: ["abc123-def456"],
         },
       },
       required: ["query"],

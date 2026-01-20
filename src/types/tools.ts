@@ -30,6 +30,7 @@ export interface ChatPerplexityArgs {
   message: string;
   chat_id?: string;
   chat_url?: string;
+  space_id?: string;
 }
 
 export interface ExtractUrlContentArgs {
@@ -55,6 +56,7 @@ export interface CheckDeprecatedCodeArgs {
 export interface SearchArgs {
   query: string;
   detail_level?: "brief" | "normal" | "detailed";
+  space_id?: string;
 }
 
 // ─── UNION TYPES ──────────────────────────────────────────────────────
