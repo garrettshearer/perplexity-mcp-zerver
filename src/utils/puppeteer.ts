@@ -6,7 +6,12 @@ import type { Browser, Page } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { CONFIG } from "../server/config.js";
-import type { PuppeteerContext, RecoveryContext } from "../types/index.js";
+import type {
+  PuppeteerContext,
+  RecoveryContext,
+  SendChatMessageOptions,
+  SendChatMessageResult,
+} from "../types/index.js";
 import { logError, logInfo, logWarn } from "./logging.js";
 import {
   analyzeError,
@@ -15,6 +20,9 @@ import {
   generateBrowserArgs,
   getCaptchaSelectors,
   getSearchInputSelectors,
+  getSubmitButtonSelector,
+  SUBMIT_BUTTON_SELECTORS,
+  TEXTAREA_SELECTORS,
 } from "./puppeteer-logic.js";
 
 // Apply stealth plugin to reduce bot detection
@@ -1365,4 +1373,260 @@ export function resetIdleTimeout(ctx: PuppeteerContext) {
     ctx.IDLE_TIMEOUT_MS ?? 5 * 60 * 1000,
   );
   ctx.setIdleTimeout(timeout);
+}
+
+// ─── SAFE INPUT: sendChatMessage ─────────────────────────────────────────────
+
+/**
+ * Send a chat message to Perplexity by directly setting textarea value.
+ *
+ * This method safely handles:
+ * - Multiline text (preserves \n characters)
+ * - Special characters (quotes, brackets, Unicode)
+ * - React controlled component state updates
+ *
+ * ## Algorithm
+ *
+ * 1. Wait for textarea using prioritized selector list
+ * 2. Focus the textarea element
+ * 3. Use native HTMLTextAreaElement.prototype.value setter (bypasses React)
+ * 4. Dispatch 'input' event with bubbles:true to trigger React
+ * 5. Optionally verify value was set correctly
+ * 6. If autoSubmit: find and click submit button
+ *
+ * ## Error Conditions
+ *
+ * - Throws if textarea not found within textareaTimeout
+ * - Throws if value verification fails (when verifyValue=true)
+ * - Throws if submit button not found/enabled within submitTimeout (when autoSubmit=true)
+ *
+ * ## Performance
+ *
+ * Expected execution time: 100-500ms (much faster than keyboard simulation)
+ *
+ * @param ctx - Puppeteer context with initialized page
+ * @param message - The message to send (supports multiline, special chars, Unicode, emojis)
+ * @param options - Configuration options for the operation
+ * @returns Result object with success status and diagnostic information
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const result = await sendChatMessage(ctx, "Hello, world!");
+ *
+ * // Multiline message
+ * const result = await sendChatMessage(ctx, "Line 1\nLine 2\nLine 3");
+ *
+ * // With options
+ * const result = await sendChatMessage(ctx, "Test message", {
+ *   autoSubmit: false,  // Don't click submit
+ *   verifyValue: true,  // Verify the value was set
+ * });
+ * ```
+ */
+export async function sendChatMessage(
+  ctx: PuppeteerContext,
+  message: string,
+  options: SendChatMessageOptions = {},
+): Promise<SendChatMessageResult> {
+  const startTime = performance.now();
+  const { page } = ctx;
+
+  // Validate page is initialized
+  if (!page || page.isClosed()) {
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: "",
+      error: "Page not initialized",
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Apply default options
+  const {
+    textareaTimeout = CONFIG.SELECTOR_TIMEOUT,
+    submitTimeout = 5000,
+    autoSubmit = true,
+    eventTypes = ["input"],
+    verifyValue = true,
+  } = options;
+
+  // Step 1: Find textarea using prioritized selectors
+  const textareaSelectorString = TEXTAREA_SELECTORS.join(", ");
+  let foundTextareaSelector = "";
+
+  try {
+    await page.waitForSelector(textareaSelectorString, {
+      timeout: textareaTimeout,
+      visible: true,
+    });
+
+    // Determine which selector matched
+    for (const selector of TEXTAREA_SELECTORS) {
+      const element = await page.$(selector);
+      if (element) {
+        foundTextareaSelector = selector;
+        break;
+      }
+    }
+
+    if (!foundTextareaSelector) {
+      foundTextareaSelector = "textarea"; // Fallback
+    }
+  } catch {
+    const currentUrl = page.url();
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: "",
+      error: `Textarea not found within ${textareaTimeout}ms. Tried selectors: ${TEXTAREA_SELECTORS.join(", ")}. Current URL: ${currentUrl}. The page may not have loaded correctly.`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Step 2: Focus the textarea
+  try {
+    await page.focus(foundTextareaSelector);
+  } catch (focusError) {
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: foundTextareaSelector,
+      error: `Failed to focus textarea: ${focusError instanceof Error ? focusError.message : String(focusError)}`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Step 3 & 4: Set value using native setter and dispatch events
+  // This pattern bypasses React's controlled component wrapper (R2 from research.md)
+  let setValue = "";
+  try {
+    setValue = await page.$eval(
+      foundTextareaSelector,
+      (textarea: Element, text: string, events: readonly string[]) => {
+        const el = textarea as HTMLTextAreaElement;
+
+        // Get the native HTMLTextAreaElement value setter to bypass React
+        const nativeValueSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype,
+          "value",
+        )?.set;
+
+        // Use native setter to bypass React's controlled component wrapper
+        if (nativeValueSetter) {
+          nativeValueSetter.call(el, text);
+        } else {
+          // Fallback: direct assignment (may not trigger React)
+          el.value = text;
+        }
+
+        // Dispatch events to notify React of the change (R1 from research.md)
+        for (const eventType of events) {
+          el.dispatchEvent(
+            new Event(eventType, {
+              bubbles: true,
+              composed: true,
+            }),
+          );
+        }
+
+        return el.value;
+      },
+      message,
+      eventTypes,
+    );
+  } catch (evalError) {
+    return {
+      success: false,
+      setValue: "",
+      textareaSelector: foundTextareaSelector,
+      error: `Failed to set textarea value: ${evalError instanceof Error ? evalError.message : String(evalError)}. The textarea may be read-only or the page structure has changed.`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Step 5: Verify value was set correctly (optional)
+  if (verifyValue && setValue !== message) {
+    // Build detailed error with character comparison
+    const expectedChars = [...message].map((c) => `${c}(${c.charCodeAt(0)})`).join("");
+    const actualChars = [...setValue].map((c) => `${c}(${c.charCodeAt(0)})`).join("");
+    return {
+      success: false,
+      setValue,
+      textareaSelector: foundTextareaSelector,
+      error: `Value verification failed: expected "${message.substring(0, 50)}${message.length > 50 ? "..." : ""}" but got "${setValue.substring(0, 50)}${setValue.length > 50 ? "..." : ""}". Expected chars: ${expectedChars.substring(0, 100)}. Actual chars: ${actualChars.substring(0, 100)}.`,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  // Brief delay to allow React state update (per research.md)
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // Step 6: Find and click submit button (if autoSubmit)
+  let foundSubmitSelector: string | undefined;
+
+  if (autoSubmit) {
+    const submitSelectorString = getSubmitButtonSelector();
+
+    try {
+      await page.waitForSelector(submitSelectorString, {
+        timeout: submitTimeout,
+        visible: true,
+      });
+
+      // Determine which selector matched
+      for (const selector of SUBMIT_BUTTON_SELECTORS) {
+        const element = await page.$(selector);
+        if (element) {
+          // Verify button is not disabled
+          const isEnabled = await page.$eval(selector, (btn: Element) => {
+            const button = btn as HTMLButtonElement;
+            return !button.disabled && button.getAttribute("aria-disabled") !== "true";
+          });
+
+          if (isEnabled) {
+            foundSubmitSelector = selector;
+            break;
+          }
+        }
+      }
+
+      if (!foundSubmitSelector) {
+        // Try to click any visible submit button as fallback
+        foundSubmitSelector = submitSelectorString;
+      }
+
+      // Click with retry logic (500ms delay on first failure)
+      try {
+        await page.click(foundSubmitSelector);
+      } catch {
+        // Retry after 500ms delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await page.click(foundSubmitSelector);
+      }
+
+      logInfo(
+        `Message submitted successfully using selector: ${foundSubmitSelector}`,
+      );
+    } catch (submitError) {
+      const currentUrl = page.url();
+      return {
+        success: false,
+        setValue,
+        textareaSelector: foundTextareaSelector,
+        submitSelector: foundSubmitSelector,
+        error: `Submit button not found or not enabled within ${submitTimeout}ms. Tried selectors: ${SUBMIT_BUTTON_SELECTORS.join(", ")}. Current URL: ${currentUrl}. This may indicate a login wall or changed UI.`,
+        durationMs: performance.now() - startTime,
+      };
+    }
+  }
+
+  return {
+    success: true,
+    setValue,
+    textareaSelector: foundTextareaSelector,
+    submitSelector: foundSubmitSelector,
+    durationMs: performance.now() - startTime,
+  };
 }
