@@ -6,6 +6,15 @@ export const CONFIG = {
   BROWSER_DATA_DIR: process.env["PERPLEXITY_BROWSER_DATA_DIR"] || join(homedir(), ".perplexity-mcp"),
   USE_PERSISTENT_PROFILE: process.env["PERPLEXITY_PERSISTENT_PROFILE"] !== "false",
 
+  /**
+   * Browser headless mode control
+   * - 'new': Modern headless (default, recommended)
+   * - false: Visible browser window for debugging
+   * 
+   * Set PERPLEXITY_HEADLESS=false to show browser window
+   */
+  HEADLESS: process.env["PERPLEXITY_HEADLESS"] !== "false" ? "new" : false as "new" | false,
+
   SEARCH_COOLDOWN: 5000, // Restored from backup.ts for better Cloudflare handling
   PAGE_TIMEOUT: 180000, // Restored from backup.ts (3 minutes) for Cloudflare challenges
   SELECTOR_TIMEOUT: 90000, // Restored from backup.ts (1.5 minutes) for slow loading

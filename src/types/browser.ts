@@ -119,6 +119,12 @@ export interface PuppeteerContext {
   incrementOperationCount: () => number;
   determineRecoveryLevel: (error?: Error) => number;
   IDLE_TIMEOUT_MS: number;
+  /**
+   * Promise-based lock for browser initialization
+   * Prevents race conditions when multiple tools call initialize concurrently
+   */
+  initPromise: Promise<void> | null;
+  setInitPromise: (promise: Promise<void> | null) => void;
 }
 
 // ─── BROWSER MANAGER INTERFACE ────────────────────────────────────────

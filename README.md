@@ -101,6 +101,21 @@ A browser window will open. **Log in using email** (recommended for best compati
 |----------|---------|-------------|
 | `PERPLEXITY_BROWSER_DATA_DIR` | `~/.perplexity-mcp` | Browser profile directory |
 | `PERPLEXITY_PERSISTENT_PROFILE` | `true` | Set to `false` for anonymous mode |
+| `PERPLEXITY_HEADLESS` | `true` | Set to `false` for visible browser (debugging) |
+
+### Debugging with Visible Browser
+
+For debugging browser automation issues or demos, run with a visible browser window:
+
+```bash
+PERPLEXITY_HEADLESS=false bun run start
+```
+
+This shows the browser window during operations, helpful for:
+- Troubleshooting Cloudflare challenges
+- Verifying login state  
+- Debugging selector issues
+- Live demonstrations
 
 ---
 
