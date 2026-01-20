@@ -14,6 +14,7 @@ export const TOOL_SCHEMAS = [
       "Continuing multi-turn conversations",
       "Context-aware question answering",
       "Follow-up questions",
+      "Resuming existing chat sessions via URL",
     ],
     inputSchema: {
       type: "object",
@@ -31,6 +32,15 @@ export const TOOL_SCHEMAS = [
           description:
             "Optional: ID of an existing chat to continue. If not provided, a new chat will be created.",
           examples: ["123e4567-e89b-12d3-a456-426614174000"],
+        },
+        chat_url: {
+          type: "string",
+          description:
+            "Optional: Full Perplexity chat URL to continue an existing conversation. Takes precedence over chat_id.",
+          examples: [
+            "https://www.perplexity.ai/search/abc123-def456",
+            "https://perplexity.ai/chat/xyz789",
+          ],
         },
       },
       required: ["message"],

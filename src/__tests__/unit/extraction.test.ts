@@ -211,4 +211,85 @@ describe("Extraction Utilities", () => {
       );
     });
   });
+
+  describe("extractChatId", () => {
+    it("should extract ID from full search URL with protocol", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("https://www.perplexity.ai/search/abc123-def456");
+      expect(result).toBe("abc123-def456");
+    });
+
+    it("should extract ID from chat URL format", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("https://www.perplexity.ai/chat/xyz789-uvw012");
+      expect(result).toBe("xyz789-uvw012");
+    });
+
+    it("should extract ID from URL without protocol", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("www.perplexity.ai/search/test123-id");
+      expect(result).toBe("test123-id");
+    });
+
+    it("should extract ID from URL without www prefix", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("perplexity.ai/search/no-www-test");
+      expect(result).toBe("no-www-test");
+    });
+
+    it("should pass through raw chat ID", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("abc123-def456-ghi789");
+      expect(result).toBe("abc123-def456-ghi789");
+    });
+
+    it("should return null for invalid URL", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("https://google.com/search/abc123");
+      expect(result).toBeNull();
+    });
+
+    it("should return null for empty input", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      expect(extractChatId("")).toBeNull();
+      expect(extractChatId("   ")).toBeNull();
+    });
+
+    it("should return null for null/undefined input", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      expect(extractChatId(null)).toBeNull();
+      expect(extractChatId(undefined)).toBeNull();
+    });
+
+    it("should extract ID from URL with https without www", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const result = extractChatId("https://perplexity.ai/search/direct-test");
+      expect(result).toBe("direct-test");
+    });
+
+    it("should reject short IDs that could be invalid", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      // IDs shorter than 8 characters are rejected
+      expect(extractChatId("abc")).toBeNull();
+      expect(extractChatId("short")).toBeNull();
+    });
+
+    it("should accept valid long chat IDs", async () => {
+      const { extractChatId } = await import("../../utils/extraction.js");
+      
+      const longId = "123e4567-e89b-12d3-a456-426614174000";
+      const result = extractChatId(longId);
+      expect(result).toBe(longId);
+    });
+  });
 });

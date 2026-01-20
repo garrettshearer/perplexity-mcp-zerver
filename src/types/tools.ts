@@ -29,6 +29,7 @@ export interface ToolHandlersRegistry {
 export interface ChatPerplexityArgs {
   message: string;
   chat_id?: string;
+  chat_url?: string;
 }
 
 export interface ExtractUrlContentArgs {

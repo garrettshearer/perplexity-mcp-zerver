@@ -41,6 +41,16 @@ vi.mock("../../utils/extraction.js", () => ({
   fetchSinglePageContent: vi.fn(),
   recursiveFetch: vi.fn(),
   extractSameDomainLinks: vi.fn(),
+  extractChatId: vi.fn().mockImplementation((input: string) => {
+    // Simple passthrough for testing - real validation done in extraction.test.ts
+    if (!input || typeof input !== "string" || input.trim().length < 8) return null;
+    return input.trim();
+  }),
+}));
+
+// Mock puppeteer utilities
+vi.mock("../../utils/puppeteer.js", () => ({
+  openPerplexityChat: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock fetch utilities
@@ -106,8 +116,9 @@ describe("Tools", () => {
       expect(result).toBe("Mock response");
     });
 
-    it("should handle chat with existing chat_id and history", async () => {
+    it("should handle chat with existing chat_id by opening URL (not replaying history)", async () => {
       const { default: chatPerplexity } = await import("../../tools/chatPerplexity.js");
+      const { openPerplexityChat } = await import("../../utils/puppeteer.js");
 
       mockGetChatHistory.mockReturnValue([
         { role: "user", content: "Previous message" } as ChatMessage,
@@ -124,11 +135,10 @@ describe("Tools", () => {
         mockSaveChatMessage,
       );
 
-      expect(mockGetChatHistory).toHaveBeenCalledWith("test-chat-id");
-      expect(mockPerformSearch).toHaveBeenCalledWith(
-        expect.stringContaining("Previous message"),
-        mockCtx,
-      );
+      // For existing chats, should open URL (not replay history)
+      expect(openPerplexityChat).toHaveBeenCalledWith(mockCtx, "test-chat-id");
+      // Message should be sent directly without history prefix
+      expect(mockPerformSearch).toHaveBeenCalledWith("New message", mockCtx);
       expect(result).toBe("New response");
     });
 
