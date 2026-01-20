@@ -119,7 +119,7 @@ describe("Type Definitions", () => {
   describe("Tool Types", () => {
     it("should define ISearchEngine interface", () => {
       const searchEngine: ISearchEngine = {
-        performSearch: async () => "result",
+        performSearch: async () => ({ answer: "result", url: "https://perplexity.ai/test", citations: [] }),
       };
 
       expect(searchEngine.performSearch).toBeTypeOf("function");

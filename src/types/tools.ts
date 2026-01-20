@@ -2,9 +2,24 @@
  * Tool arguments and results type definitions
  */
 
+// ─── SEARCH RESULT TYPE ───────────────────────────────────────────────
+/**
+ * T008: SearchResult interface for structured search responses
+ * Returns answer, URL (chat_id), and citations from Perplexity
+ */
+export interface SearchResult {
+  /** The extracted answer text from Perplexity */
+  answer: string;
+  /** The Perplexity page URL (used as chat_id for continuity) */
+  url: string;
+  /** Array of citation URLs extracted from the answer */
+  citations: string[];
+}
+
 // ─── SEARCH ENGINE INTERFACE ──────────────────────────────────────────
+// T010: Updated to return Promise<SearchResult> instead of Promise<string>
 export interface ISearchEngine {
-  performSearch(query: string): Promise<string>;
+  performSearch(query: string): Promise<SearchResult>;
 }
 
 // ─── TOOL HANDLER TYPES ───────────────────────────────────────────────

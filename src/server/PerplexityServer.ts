@@ -2,8 +2,13 @@
  * PerplexityServer - Modular, testable architecture
  * Uses dependency injection and focused modules for better testability
  */
+import { createRequire } from "node:module";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+// Dynamic version from package.json (T016, T017)
+const require = createRequire(import.meta.url);
+const pkg = require("../../package.json") as { version: string };
 import type {
   IBrowserManager,
   IDatabaseManager,
@@ -30,7 +35,7 @@ export class PerplexityServer {
     try {
       // Initialize MCP Server
       this.server = new Server(
-        { name: "perplexity-server", version: "0.2.0" },
+        { name: "perplexity-server", version: pkg.version },
         {
           capabilities: {
             tools: {
@@ -96,53 +101,60 @@ export class PerplexityServer {
   }
 
   // Tool handler implementations
+  // T012: Updated to use SearchResult.url as chat_id
   private async handleChatPerplexity(args: Record<string, unknown>): Promise<string> {
     const typedArgs = args as { message: string; chat_id?: string };
 
-    // Use modular search engine
+    // Use modular search engine - now returns SearchResult with url as chat_id
     const searchResult = await this.searchEngine.performSearch(typedArgs.message);
 
-    // Use modular database manager
+    // Use modular database manager with URL-based chat_id
+    const chatIdFromUrl = searchResult.url;
     const getChatHistoryFn = (chatId: string) => this.databaseManager.getChatHistory(chatId);
     const saveChatMessageFn = (
       chatId: string,
       message: { role: "user" | "assistant"; content: string },
     ) => this.databaseManager.saveChatMessage(chatId, message.role, message.content);
 
-    // Call the original tool implementation with injected dependencies
+    // T012: Use URL as chat_id in response, pass answer to chatPerplexity
+    // Override the chat_id with the actual Perplexity URL
     return await chatPerplexity(
-      typedArgs,
+      { ...typedArgs, chat_id: chatIdFromUrl },
       {} as never, // Context not needed with modular approach
-      () => Promise.resolve(searchResult),
+      () => Promise.resolve(searchResult.answer),
       getChatHistoryFn,
       saveChatMessageFn,
     );
   }
 
+  // T013: Updated to destructure SearchResult
   private async handleGetDocumentation(args: Record<string, unknown>): Promise<string> {
     const typedArgs = args as { query: string; context?: string };
-    const searchResult = await this.searchEngine.performSearch(
+    const { answer } = await this.searchEngine.performSearch(
       `Documentation for ${typedArgs.query}: ${typedArgs.context || ""}`,
     );
-    return searchResult;
+    return answer;
   }
 
+  // T014: Updated to destructure SearchResult
   private async handleFindApis(args: Record<string, unknown>): Promise<string> {
     const typedArgs = args as { requirement: string; context?: string };
-    const searchResult = await this.searchEngine.performSearch(
+    const { answer } = await this.searchEngine.performSearch(
       `Find APIs for ${typedArgs.requirement}: ${typedArgs.context || ""}`,
     );
-    return searchResult;
+    return answer;
   }
 
+  // T015: Updated to destructure SearchResult
   private async handleCheckDeprecatedCode(args: Record<string, unknown>): Promise<string> {
     const typedArgs = args as { code: string; technology?: string };
-    const searchResult = await this.searchEngine.performSearch(
+    const { answer } = await this.searchEngine.performSearch(
       `Check if this ${typedArgs.technology || "code"} is deprecated: ${typedArgs.code}`,
     );
-    return searchResult;
+    return answer;
   }
 
+  // T015: Updated to destructure SearchResult
   private async handleSearch(args: Record<string, unknown>): Promise<string> {
     const typedArgs = args as {
       query: string;
@@ -150,7 +162,8 @@ export class PerplexityServer {
       stream?: boolean;
     };
 
-    return await this.searchEngine.performSearch(typedArgs.query);
+    const { answer } = await this.searchEngine.performSearch(typedArgs.query);
+    return answer;
   }
 
   private async handleExtractUrlContent(args: Record<string, unknown>): Promise<string> {
@@ -168,8 +181,7 @@ export class PerplexityServer {
   }
 
   private createPuppeteerContext() {
-    const browserManager = this.browserManager as any; // Access the getPuppeteerContext method
-    return browserManager.getPuppeteerContext();
+    return this.browserManager.getPuppeteerContext();
   }
 
   private setupToolHandlers(): void {

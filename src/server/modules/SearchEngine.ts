@@ -3,7 +3,7 @@
  * Focused, testable module for Perplexity search functionality
  */
 import type { Page } from "puppeteer";
-import type { IBrowserManager, ISearchEngine } from "../../types/index.js";
+import type { IBrowserManager, ISearchEngine, SearchResult } from "../../types/index.js";
 import { logError, logInfo, logWarn } from "../../utils/logging.js";
 import { retryOperation, sendChatMessage } from "../../utils/puppeteer.js";
 import { CONFIG } from "../config.js";
@@ -11,7 +11,8 @@ import { CONFIG } from "../config.js";
 export class SearchEngine implements ISearchEngine {
   constructor(private readonly browserManager: IBrowserManager) {}
 
-  async performSearch(query: string): Promise<string> {
+  // T011: Updated to return SearchResult with answer, url, and citations
+  async performSearch(query: string): Promise<SearchResult> {
     // Set a global timeout for the entire operation with buffer for MCP
     const operationTimeout = setTimeout(() => {
       logError("Global operation timeout reached, initiating recovery...");
@@ -61,38 +62,67 @@ export class SearchEngine implements ISearchEngine {
         // Perform the search
         await this.executeSearch(page, selector, query);
 
-        // Wait for and extract the answer
-        const answer = await this.waitForCompleteAnswer(page);
-        return answer;
+        // Wait for and extract the answer with URL and citations
+        const result = await this.waitForCompleteAnswer(page);
+        
+        // T011: Capture the page URL as chat_id (after search completes)
+        const pageUrl = page.url();
+        logInfo(`Search completed with URL: ${pageUrl}`);
+        
+        return {
+          answer: result.answer,
+          url: pageUrl,
+          citations: result.citations,
+        };
       }, CONFIG.MAX_RETRIES);
     } catch (error) {
       logError("Search operation failed after all retries:", {
         error: error instanceof Error ? error.message : String(error),
       });
 
+      // Get current URL even on error (may be useful for debugging)
+      const page = this.browserManager.getPage();
+      const errorUrl = page?.url() || "https://www.perplexity.ai";
+
       // Handle specific error cases with user-friendly messages
       if (error instanceof Error) {
         if (error.message.includes("detached") || error.message.includes("Detached")) {
           logError("Frame detachment detected, attempting recovery...");
           await this.browserManager.performRecovery();
-          return "The search operation encountered a technical issue. Please try again with a more specific query.";
+          return {
+            answer: "The search operation encountered a technical issue. Please try again with a more specific query.",
+            url: errorUrl,
+            citations: [],
+          };
         }
 
         if (error.message.includes("timeout") || error.message.includes("Timed out")) {
           logError("Timeout detected, attempting recovery...");
           await this.browserManager.performRecovery();
-          return "The search operation is taking longer than expected. This might be due to high server load. Your query has been submitted and we're waiting for results. Please try again with a more specific query if needed.";
+          return {
+            answer: "The search operation is taking longer than expected. This might be due to high server load. Your query has been submitted and we're waiting for results. Please try again with a more specific query if needed.",
+            url: errorUrl,
+            citations: [],
+          };
         }
 
         if (error.message.includes("navigation") || error.message.includes("Navigation")) {
           logError("Navigation error detected, attempting recovery...");
           await this.browserManager.performRecovery();
-          return "The search operation encountered a navigation issue. This might be due to network connectivity problems. Please try again later.";
+          return {
+            answer: "The search operation encountered a navigation issue. This might be due to network connectivity problems. Please try again later.",
+            url: errorUrl,
+            citations: [],
+          };
         }
       }
 
       // For any other errors, return a user-friendly message
-      return `The search operation could not be completed. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later with a more specific query.`;
+      return {
+        answer: `The search operation could not be completed. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later with a more specific query.`,
+        url: errorUrl,
+        citations: [],
+      };
     } finally {
       clearTimeout(operationTimeout);
     }
@@ -134,7 +164,8 @@ export class SearchEngine implements ISearchEngine {
     logInfo(`Search query submitted successfully (${result.durationMs?.toFixed(0)}ms)`);
   }
 
-  private async waitForCompleteAnswer(page: Page): Promise<string> {
+  // T011: Updated to return { answer, citations } structure
+  private async waitForCompleteAnswer(page: Page): Promise<{ answer: string; citations: string[] }> {
     logInfo("Waiting for search response...");
 
     // First, wait for any response elements to appear
@@ -176,15 +207,16 @@ export class SearchEngine implements ISearchEngine {
     }
 
     // Now wait for the complete answer using the sophisticated algorithm
-    const answer = await this.extractCompleteAnswer(page);
-    logInfo(`Answer received (${answer.length} characters)`);
+    const result = await this.extractCompleteAnswer(page);
+    logInfo(`Answer received (${result.answer.length} characters, ${result.citations.length} citations)`);
 
-    return answer;
+    return result;
   }
 
-  private async extractCompleteAnswer(page: Page): Promise<string> {
+  // T011: Updated to return { answer, citations } structure
+  private async extractCompleteAnswer(page: Page): Promise<{ answer: string; citations: string[] }> {
     // Set a timeout to ensure we don't wait indefinitely, but make it much longer
-    const timeoutPromise = new Promise<string>((_, reject) => {
+    const timeoutPromise = new Promise<{ answer: string; citations: string[] }>((_, reject) => {
       setTimeout(() => {
         reject(new Error('Waiting for complete answer timed out'));
       }, CONFIG.ANSWER_WAIT_TIMEOUT); // Use the dedicated answer wait timeout
@@ -209,24 +241,22 @@ export class SearchEngine implements ISearchEngine {
         return true;
       };
 
-      const getAnswer = () => {
+      // T011: Return both answer text and citations array separately
+      const getAnswerWithCitations = (): { answer: string; citations: string[] } => {
         const elements = Array.from(document.querySelectorAll(".prose"));
         const answerText = elements.map((el) => (el as HTMLElement).innerText.trim()).join("\n\n");
 
-        // Extract all URLs from the answer
+        // Extract all URLs from the answer as citations
         const links = Array.from(document.querySelectorAll(".prose a[href]"));
-        const urls = links.map(link => (link as HTMLAnchorElement).href)
+        const citations = links.map(link => (link as HTMLAnchorElement).href)
           .filter(isSafeUrl)
-          .map(href => href.trim());
+          .map(href => href.trim())
+          .filter((url, index, self) => self.indexOf(url) === index); // Remove duplicates
 
-        // Combine text and URLs
-        if (urls.length > 0) {
-          return `${answerText}\n\nURLs:\n${urls.map(url => `- ${url}`).join('\n')}`;
-        }
-        return answerText;
+        return { answer: answerText, citations };
       };
 
-      let lastAnswer = '';
+      let lastResult = { answer: '', citations: [] as string[] };
       let lastLength = 0;
       let stabilityCounter = 0;
       let noChangeCounter = 0;
@@ -235,15 +265,15 @@ export class SearchEngine implements ISearchEngine {
 
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
-        const currentAnswer = getAnswer();
-        const currentLength = currentAnswer.length;
+        const currentResult = getAnswerWithCitations();
+        const currentLength = currentResult.answer.length;
 
         if (currentLength > 0) {
           if (currentLength > lastLength) {
             lastLength = currentLength;
             stabilityCounter = 0;
             noChangeCounter = 0;
-          } else if (currentAnswer === lastAnswer) {
+          } else if (currentResult.answer === lastResult.answer) {
             stabilityCounter++;
             noChangeCounter++;
 
@@ -261,7 +291,7 @@ export class SearchEngine implements ISearchEngine {
             noChangeCounter++;
             stabilityCounter = 0;
           }
-          lastAnswer = currentAnswer;
+          lastResult = currentResult;
 
           if (noChangeCounter >= 10 && currentLength > 200) {
             console.log('Content stopped growing but has sufficient information');
@@ -279,7 +309,9 @@ export class SearchEngine implements ISearchEngine {
           break;
         }
       }
-      return lastAnswer || 'No answer content found. The website may be experiencing issues.';
+      return lastResult.answer 
+        ? lastResult 
+        : { answer: 'No answer content found. The website may be experiencing issues.', citations: [] };
     });
 
     try {
@@ -300,7 +332,10 @@ export class SearchEngine implements ISearchEngine {
             });
 
             if (partialAnswer && partialAnswer.length > 50) {
-              return partialAnswer + '\n\n[Note: Answer retrieval was interrupted. This is a partial response.]';
+              return { 
+                answer: partialAnswer + '\n\n[Note: Answer retrieval was interrupted. This is a partial response.]',
+                citations: [],
+              };
             }
 
             // Wait briefly before trying again
@@ -314,20 +349,24 @@ export class SearchEngine implements ISearchEngine {
           }
         }
 
-        return 'Answer retrieval timed out. The service might be experiencing high load. Please try again with a more specific query.';
+        return { 
+          answer: 'Answer retrieval timed out. The service might be experiencing high load. Please try again with a more specific query.',
+          citations: [],
+        };
       } catch (e) {
         logError("Failed to retrieve partial answer:", {
           error: e instanceof Error ? e.message : String(e),
         });
-        return 'Answer retrieval timed out. Please try again later.';
+        return { answer: 'Answer retrieval timed out. Please try again later.', citations: [] };
       }
     }
   }
 
   // Helper method to extract answer when normal selectors fail
-  private async extractFallbackAnswer(page: Page): Promise<string> {
+  // T011: Updated to return { answer, citations } structure
+  private async extractFallbackAnswer(page: Page): Promise<{ answer: string; citations: string[] }> {
     try {
-      return await page.evaluate(() => {
+      const answer = await page.evaluate(() => {
         // Try various ways to find content
         const contentSelectors = [
           // Common content containers
@@ -361,11 +400,12 @@ export class SearchEngine implements ISearchEngine {
         // Last resort: get any visible text
         return document.body.innerText.substring(0, 2000) + '\n\n[Note: Content extraction used fallback method due to page structure changes]';
       });
+      return { answer, citations: [] };
     } catch (error) {
       logError("Error in fallback answer extraction:", {
         error: error instanceof Error ? error.message : String(error),
       });
-      return 'Unable to extract answer content. The website structure may have changed.';
+      return { answer: 'Unable to extract answer content. The website structure may have changed.', citations: [] };
     }
   }
 

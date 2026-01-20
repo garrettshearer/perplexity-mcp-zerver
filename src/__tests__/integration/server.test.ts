@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { PerplexityServer } from "../../server/PerplexityServer.js";
-import type { IBrowserManager, IDatabaseManager, ISearchEngine } from "../../types/index.js";
+import type { IBrowserManager, IDatabaseManager, ISearchEngine, SearchResult } from "../../types/index.js";
+
+// Helper to create SearchResult mocks
+const mockSearchResult = (answer: string, url = "https://www.perplexity.ai/search/test-id"): SearchResult => ({
+  answer,
+  url,
+  citations: [],
+});
 
 // Mock the modules to avoid actual browser initialization and database connections
 vi.mock("../../server/modules/BrowserManager.js", () => {
@@ -46,7 +53,7 @@ vi.mock("../../server/modules/DatabaseManager.js", () => {
 vi.mock("../../server/modules/SearchEngine.js", () => {
   return {
     SearchEngine: vi.fn().mockImplementation(() => ({
-      performSearch: vi.fn().mockResolvedValue("Mock search result"),
+      performSearch: vi.fn().mockResolvedValue({ answer: "Mock search result", url: "https://perplexity.ai/test", citations: [] }),
     })),
   };
 });
@@ -86,7 +93,7 @@ describe("MCP Server Integration", () => {
       };
 
       const mockSearchEngine: ISearchEngine = {
-        performSearch: vi.fn().mockResolvedValue("Custom search result"),
+        performSearch: vi.fn().mockResolvedValue(mockSearchResult("Custom search result")),
       };
 
       const mockDatabaseManager: IDatabaseManager = {
@@ -177,11 +184,11 @@ describe("MCP Server Integration", () => {
       const searchEngine = server.getSearchEngine();
 
       // Mock the search engine to return a specific result
-      vi.mocked(searchEngine.performSearch).mockResolvedValue("Test search result");
+      vi.mocked(searchEngine.performSearch).mockResolvedValue(mockSearchResult("Test search result"));
 
       const result = await searchEngine.performSearch("test query");
 
-      expect(result).toBe("Test search result");
+      expect(result.answer).toBe("Test search result");
       expect(searchEngine.performSearch).toHaveBeenCalledWith("test query");
     });
 
@@ -190,11 +197,11 @@ describe("MCP Server Integration", () => {
       const searchEngine = server.getSearchEngine();
 
       // Mock the search engine to return a specific result
-      vi.mocked(searchEngine.performSearch).mockResolvedValue("Chat response");
+      vi.mocked(searchEngine.performSearch).mockResolvedValue(mockSearchResult("Chat response"));
 
       const result = await searchEngine.performSearch("Hello, how are you?");
 
-      expect(result).toBe("Chat response");
+      expect(result.answer).toBe("Chat response");
       expect(searchEngine.performSearch).toHaveBeenCalledWith("Hello, how are you?");
     });
 
@@ -210,10 +217,10 @@ describe("MCP Server Integration", () => {
       ];
 
       for (const query of queries) {
-        vi.mocked(searchEngine.performSearch).mockResolvedValueOnce(`Result for: ${query}`);
+        vi.mocked(searchEngine.performSearch).mockResolvedValueOnce(mockSearchResult(`Result for: ${query}`));
         const result = await searchEngine.performSearch(query);
 
-        expect(result).toBe(`Result for: ${query}`);
+        expect(result.answer).toBe(`Result for: ${query}`);
         expect(searchEngine.performSearch).toHaveBeenCalledWith(query);
       }
     });
@@ -237,13 +244,13 @@ describe("MCP Server Integration", () => {
       const searchEngine = server.getSearchEngine();
 
       // Mock the search engine to return a documentation result
-      vi.mocked(searchEngine.performSearch).mockResolvedValue("Documentation for React hooks");
+      vi.mocked(searchEngine.performSearch).mockResolvedValue(mockSearchResult("Documentation for React hooks"));
 
       const result = await searchEngine.performSearch(
         "Documentation for React hooks: focus on performance",
       );
 
-      expect(result).toBe("Documentation for React hooks");
+      expect(result.answer).toBe("Documentation for React hooks");
       expect(searchEngine.performSearch).toHaveBeenCalledWith(
         "Documentation for React hooks: focus on performance",
       );
@@ -254,13 +261,13 @@ describe("MCP Server Integration", () => {
       const searchEngine = server.getSearchEngine();
 
       // Mock the search engine to return an API discovery result
-      vi.mocked(searchEngine.performSearch).mockResolvedValue("APIs for image recognition");
+      vi.mocked(searchEngine.performSearch).mockResolvedValue(mockSearchResult("APIs for image recognition"));
 
       const result = await searchEngine.performSearch(
         "Find APIs for image recognition: prefer free tier options",
       );
 
-      expect(result).toBe("APIs for image recognition");
+      expect(result.answer).toBe("APIs for image recognition");
       expect(searchEngine.performSearch).toHaveBeenCalledWith(
         "Find APIs for image recognition: prefer free tier options",
       );
@@ -271,13 +278,13 @@ describe("MCP Server Integration", () => {
       const searchEngine = server.getSearchEngine();
 
       // Mock the search engine to return a deprecation check result
-      vi.mocked(searchEngine.performSearch).mockResolvedValue("componentWillMount is deprecated");
+      vi.mocked(searchEngine.performSearch).mockResolvedValue(mockSearchResult("componentWillMount is deprecated"));
 
       const result = await searchEngine.performSearch(
         "Check if this code is deprecated: componentWillMount()",
       );
 
-      expect(result).toBe("componentWillMount is deprecated");
+      expect(result.answer).toBe("componentWillMount is deprecated");
       expect(searchEngine.performSearch).toHaveBeenCalledWith(
         "Check if this code is deprecated: componentWillMount()",
       );
@@ -300,11 +307,11 @@ describe("MCP Server Integration", () => {
       const searchEngine = server.getSearchEngine();
 
       // Test with empty query
-      vi.mocked(searchEngine.performSearch).mockResolvedValue("Empty query response");
+      vi.mocked(searchEngine.performSearch).mockResolvedValue(mockSearchResult("Empty query response"));
 
       const result = await searchEngine.performSearch("");
 
-      expect(result).toBe("Empty query response");
+      expect(result.answer).toBe("Empty query response");
       expect(searchEngine.performSearch).toHaveBeenCalledWith("");
     });
 

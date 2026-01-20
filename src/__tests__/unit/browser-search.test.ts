@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SearchResult } from "../../types/index.js";
+
+// Helper to create mock SearchResult
+function mockSearchResult(answer: string, url = "https://www.perplexity.ai/search/test-123", citations: string[] = []): SearchResult {
+  return { answer, url, citations };
+}
 
 // Mock browser/page objects
 const mockPage = {
@@ -15,6 +21,7 @@ const mockPage = {
   },
   screenshot: vi.fn(),
   isClosed: vi.fn().mockReturnValue(false),
+  url: vi.fn().mockReturnValue("https://www.perplexity.ai/search/test-123"),
 };
 
 const mockBrowser = {
@@ -296,8 +303,8 @@ describe("Browser and Search Modules", () => {
       // The actual implementation catches errors and returns a formatted error message
       // rather than rejecting the promise
       const result = await searchEngine.performSearch(query);
-      expect(typeof result).toBe("string");
-      expect(result).toContain("could not be completed");
+      expect(typeof result).toBe("object");
+      expect(result.answer).toContain("could not be completed");
     });
 
     it("should handle successful search with answer extraction", async () => {
@@ -317,12 +324,12 @@ describe("Browser and Search Modules", () => {
 
       // Mock retryOperation to return a successful result
       vi.mocked(puppeteerUtils.retryOperation).mockImplementation(async (_ctx: any, _fn: any) => {
-        return "TypeScript is a programming language developed by Microsoft...";
+        return mockSearchResult("TypeScript is a programming language developed by Microsoft...");
       });
 
       const result = await searchEngine.performSearch(query);
 
-      expect(result).toContain("TypeScript is a programming language");
+      expect(result.answer).toContain("TypeScript is a programming language");
     });
 
     it("should handle timeout during search", async () => {
@@ -347,7 +354,7 @@ describe("Browser and Search Modules", () => {
 
       const result = await searchEngine.performSearch(query);
 
-      expect(result).toContain("taking longer than expected");
+      expect(result.answer).toContain("taking longer than expected");
     });
 
     it("should handle navigation error during search", async () => {
@@ -372,7 +379,7 @@ describe("Browser and Search Modules", () => {
 
       const result = await searchEngine.performSearch(query);
 
-      expect(result).toContain("navigation issue");
+      expect(result.answer).toContain("navigation issue");
     });
 
     it("should handle frame detachment during search", async () => {
@@ -397,7 +404,7 @@ describe("Browser and Search Modules", () => {
 
       const result = await searchEngine.performSearch(query);
 
-      expect(result).toContain("technical issue");
+      expect(result.answer).toContain("technical issue");
     });
 
     it("should execute search with retry mechanism", async () => {
@@ -425,7 +432,8 @@ describe("Browser and Search Modules", () => {
 
       // Check that retryOperation was called
       expect(retrySpy).toHaveBeenCalled();
-      expect(typeof result).toBe("string");
+      expect(typeof result).toBe("object");
+      expect(result.answer).toBeDefined();
     });
 
     it("should validate search input", async () => {
@@ -450,7 +458,8 @@ describe("Browser and Search Modules", () => {
 
       const result = await searchEngine.performSearch(query);
 
-      expect(result).toContain("could not be completed");
+      // SearchResult now returns { answer, url, citations }
+      expect(result.answer).toContain("could not be completed");
     });
 
     it("should handle search input detection failure", async () => {
@@ -475,8 +484,9 @@ describe("Browser and Search Modules", () => {
 
       const result = await searchEngine.performSearch(query);
 
-      expect(result).toContain("could not be completed");
-      expect(result).toContain("Search input not found");
+      // SearchResult now returns { answer, url, citations }
+      expect(result.answer).toContain("could not be completed");
+      expect(result.answer).toContain("Search input not found");
     });
   });
 });

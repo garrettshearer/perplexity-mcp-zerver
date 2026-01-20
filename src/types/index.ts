@@ -34,6 +34,7 @@ export type {
 
 // ─── TOOL & SEARCH TYPES ──────────────────────────────────────────────
 export type {
+  SearchResult,
   ISearchEngine,
   ToolHandler,
   ToolHandlersRegistry,

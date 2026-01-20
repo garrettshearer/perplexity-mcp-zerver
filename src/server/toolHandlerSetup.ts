@@ -14,7 +14,40 @@ import {
 
 import { TOOL_SCHEMAS } from "../schema/toolSchemas.js";
 import type { ChatPerplexityArgs, ToolHandlersRegistry } from "../types/index.js";
-import { logError, logWarn } from "../utils/logging.js";
+import { logError, logInfo, logWarn } from "../utils/logging.js";
+
+/**
+ * T005: Check if a value is an AsyncGenerator using Symbol.asyncIterator
+ */
+function isAsyncGenerator(value: unknown): value is AsyncGenerator<string, void, unknown> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Symbol.asyncIterator in value &&
+    typeof (value as AsyncGenerator)[Symbol.asyncIterator] === "function"
+  );
+}
+
+/**
+ * T006: Accumulate AsyncGenerator chunks into a single string
+ * Writes progress to stderr for visibility during streaming
+ */
+async function accumulateAsyncGenerator(
+  generator: AsyncGenerator<string, void, unknown>,
+): Promise<string> {
+  const chunks: string[] = [];
+  let chunkCount = 0;
+
+  for await (const chunk of generator) {
+    chunks.push(chunk);
+    chunkCount++;
+    // Write progress to stderr for visibility (MCP-safe logging)
+    logInfo(`Streaming chunk ${chunkCount} received (${chunk.length} chars)`);
+  }
+
+  logInfo(`Streaming complete: ${chunkCount} chunks, ${chunks.join("").length} total chars`);
+  return chunks.join("");
+}
 
 /**
  * Sets up MCP tool handlers for the server
@@ -40,7 +73,13 @@ export function setupToolHandlers(server: Server, toolHandlers: ToolHandlersRegi
 
     try {
       if (toolHandlers[name]) {
-        const result = await toolHandlers[name](args || {});
+        let result = await toolHandlers[name](args || {});
+
+        // T005/T006: Handle AsyncGenerator results - accumulate into string for MCP compatibility
+        if (isAsyncGenerator(result)) {
+          logInfo(`Tool ${name} returned AsyncGenerator, accumulating chunks...`);
+          result = await accumulateAsyncGenerator(result as AsyncGenerator<string, void, unknown>);
+        }
 
         // Special case for chat to return chat_id
         if (name === "chat_perplexity") {

@@ -75,4 +75,92 @@ describe("Tool Handler Setup", () => {
       expect(registry["checkDeprecatedCode"]).toBe(mockToolHandlers["checkDeprecatedCode"]);
     });
   });
+
+  // T007: Unit tests for AsyncGenerator detection and accumulation
+  describe("AsyncGenerator handling", () => {
+    /**
+     * Helper to create an AsyncGenerator for testing
+     */
+    async function* createMockAsyncGenerator(chunks: string[]): AsyncGenerator<string, void, unknown> {
+      for (const chunk of chunks) {
+        yield chunk;
+      }
+    }
+
+    it("should accumulate AsyncGenerator chunks into single string response", async () => {
+      // Create a tool handler that returns an AsyncGenerator
+      const streamingHandler = vi.fn().mockImplementation(() => 
+        createMockAsyncGenerator(["Hello ", "World", "!"])
+      );
+      
+      const streamingToolHandlers: ToolHandlersRegistry = {
+        ...mockToolHandlers,
+        search: streamingHandler,
+      };
+
+      setupToolHandlers(mockServer, streamingToolHandlers);
+
+      // Get the CallTool handler function (second call)
+      const callToolHandler = mockServer.setRequestHandler.mock.calls[1][1];
+
+      const mockRequest = {
+        params: {
+          name: "search",
+          arguments: { query: "test streaming" },
+        },
+      };
+
+      const response = await callToolHandler(mockRequest);
+      
+      // Should receive accumulated text, not [object AsyncGenerator]
+      expect(response.content[0].text).toBe("Hello World!");
+    });
+
+    it("should handle empty AsyncGenerator", async () => {
+      const emptyStreamingHandler = vi.fn().mockImplementation(() => 
+        createMockAsyncGenerator([])
+      );
+      
+      const streamingToolHandlers: ToolHandlersRegistry = {
+        ...mockToolHandlers,
+        search: emptyStreamingHandler,
+      };
+
+      setupToolHandlers(mockServer, streamingToolHandlers);
+      const callToolHandler = mockServer.setRequestHandler.mock.calls[1][1];
+
+      const mockRequest = {
+        params: {
+          name: "search",
+          arguments: { query: "empty stream" },
+        },
+      };
+
+      const response = await callToolHandler(mockRequest);
+      expect(response.content[0].text).toBe("");
+    });
+
+    it("should pass through non-generator results unchanged", async () => {
+      // Regular string result (not AsyncGenerator)
+      const regularHandler = vi.fn().mockResolvedValue("regular response");
+      
+      const regularToolHandlers: ToolHandlersRegistry = {
+        ...mockToolHandlers,
+        search: regularHandler,
+      };
+
+      setupToolHandlers(mockServer, regularToolHandlers);
+      const callToolHandler = mockServer.setRequestHandler.mock.calls[1][1];
+
+      const mockRequest = {
+        params: {
+          name: "search",
+          arguments: { query: "regular query" },
+        },
+      };
+
+      const response = await callToolHandler(mockRequest);
+      expect(response.content[0].text).toBe("regular response");
+    });
+  });
 });

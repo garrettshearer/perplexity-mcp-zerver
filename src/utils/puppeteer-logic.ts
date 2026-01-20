@@ -59,7 +59,7 @@ export const RESEARCH_MODE_SELECTORS = {
  */
 export function isResearchModeActive(
   ariaSelected: string | null,
-  selectedClass: boolean = false,
+  selectedClass = false,
 ): boolean {
   // Primary check: aria-selected attribute (FR-003)
   if (ariaSelected === "true") {
