@@ -18,6 +18,7 @@ import type {
 import { logError, logInfo } from "../utils/logging.js";
 import { BrowserManager } from "./modules/BrowserManager.js";
 import { DatabaseManager } from "./modules/DatabaseManager.js";
+import { RagArchiver } from "./modules/RagArchiver.js";
 import { SearchEngine } from "./modules/SearchEngine.js";
 import { createToolHandlersRegistry, setupToolHandlers } from "./toolHandlerSetup.js";
 
@@ -30,6 +31,7 @@ export class PerplexityServer {
   private readonly browserManager: IBrowserManager;
   private readonly searchEngine: ISearchEngine;
   private readonly databaseManager: IDatabaseManager;
+  private readonly ragArchiver: RagArchiver;
 
   constructor(dependencies?: ServerDependencies) {
     try {
@@ -49,9 +51,14 @@ export class PerplexityServer {
       this.databaseManager = dependencies?.databaseManager ?? new DatabaseManager();
       this.browserManager = dependencies?.browserManager ?? new BrowserManager();
       this.searchEngine = dependencies?.searchEngine ?? new SearchEngine(this.browserManager);
+      this.ragArchiver = new RagArchiver();
 
       // Initialize database
       this.databaseManager.initialize();
+
+      // Initialize RAG archiver directory (fire-and-forget)
+      this.ragArchiver.ensureDirectory().catch(() => {});
+      logInfo(`RAG archive configured at: ${this.ragArchiver.getArchivePath()}`);
 
       // Setup tool handlers
       this.setupToolHandlers();
@@ -103,7 +110,7 @@ export class PerplexityServer {
   // Tool handler implementations
   // T012: Updated to use SearchResult.url as chat_id
   private async handleChatPerplexity(args: Record<string, unknown>): Promise<string> {
-    const typedArgs = args as { message: string; chat_id?: string };
+    const typedArgs = args as { message: string; chat_id?: string; model?: string; research_mode?: string };
 
     // Use modular search engine - now returns SearchResult with url as chat_id
     const searchResult = await this.searchEngine.performSearch(typedArgs.message);
@@ -118,13 +125,24 @@ export class PerplexityServer {
 
     // T012: Use URL as chat_id in response, pass answer to chatPerplexity
     // Override the chat_id with the actual Perplexity URL
-    return await chatPerplexity(
+    const result = await chatPerplexity(
       { ...typedArgs, chat_id: chatIdFromUrl },
       {} as never, // Context not needed with modular approach
       () => Promise.resolve(searchResult.answer),
       getChatHistoryFn,
       saveChatMessageFn,
     );
+
+    // Archive interaction to RAG storage (fire-and-forget)
+    this.ragArchiver
+      .logInteraction(chatIdFromUrl, typedArgs.message, searchResult.answer, {
+        model: typedArgs.model,
+        research_mode: typedArgs.research_mode,
+        // Citations would be extracted from searchResult if available
+      })
+      .catch(() => {}); // Fire-and-forget, errors logged internally
+
+    return result;
   }
 
   // T013: Updated to destructure SearchResult

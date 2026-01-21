@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>12/12</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>12/12</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -107,19 +107,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -129,8 +127,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * Tool handler for 'check_deprecated_code'.
  * Analyzes code for deprecated features or patterns and suggests replacements, using the Perplexity search logic.
@@ -141,17 +141,17 @@
  */
 import type { PuppeteerContext } from "../types/index.js";
 &nbsp;
-export default async function checkDeprecatedCode(
-  args: { code: string; technology?: string },
-  ctx: PuppeteerContext,
-  performSearch: (prompt: string, ctx: PuppeteerContext) =&gt; Promise&lt;string&gt;,
-): Promise&lt;string&gt; {
-  const { code, technology = "" } = args;
-  const prompt = `Analyze this code for deprecated features or patterns${
-    technology ? ` in ${technology}` : ""
-  }:
+<span class="cstat-no" title="statement not covered" >export default async function checkDeprecatedCode(</span>
+<span class="cstat-no" title="statement not covered" >  args: { code: string; technology?: string },</span>
+<span class="cstat-no" title="statement not covered" >  ctx: PuppeteerContext,</span>
+<span class="cstat-no" title="statement not covered" >  performSearch: (prompt: string, ctx: PuppeteerContext) =&gt; Promise&lt;string&gt;,</span>
+<span class="cstat-no" title="statement not covered" >): Promise&lt;string&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const { code, technology = "" } = args;</span>
+<span class="cstat-no" title="statement not covered" >  const prompt = `Analyze this code for deprecated features or patterns${</span>
+<span class="cstat-no" title="statement not covered" >    technology ? ` in ${technology}` : ""</span>
+<span class="cstat-no" title="statement not covered" >  }:</span>
 &nbsp;
-${code}
+<span class="cstat-no" title="statement not covered" >${code}</span>
 &nbsp;
 Please provide:
 1. Identification of deprecated features/methods
@@ -163,8 +163,8 @@ Please provide:
 7. Performance implications
 8. Backward compatibility considerations
 9. Testing recommendations for the changes`;
-  return await performSearch(prompt, ctx);
-}
+<span class="cstat-no" title="statement not covered" >  return await performSearch(prompt, ctx);</span>
+<span class="cstat-no" title="statement not covered" >}</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -172,7 +172,7 @@ Please provide:
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-20T22:33:43.317Z
+                at 2026-01-21T00:04:01.266Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

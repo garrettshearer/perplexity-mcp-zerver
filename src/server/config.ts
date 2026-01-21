@@ -6,6 +6,9 @@ export const CONFIG = {
   BROWSER_DATA_DIR: process.env["PERPLEXITY_BROWSER_DATA_DIR"] || join(homedir(), ".perplexity-mcp"),
   USE_PERSISTENT_PROFILE: process.env["PERPLEXITY_PERSISTENT_PROFILE"] !== "false",
 
+  // RAG Archive configuration
+  RAG_ARCHIVE_PATH: process.env["RAG_ARCHIVE_PATH"] || "./data/rag_archive.jsonl",
+
   /**
    * Browser headless mode control
    * - 'new': Modern headless (default, recommended)

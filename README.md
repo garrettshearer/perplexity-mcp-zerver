@@ -145,6 +145,34 @@ A browser window will open. **Log in using email** (recommended for best compati
 | `PERPLEXITY_BROWSER_DATA_DIR` | `~/.perplexity-mcp` | Browser profile directory |
 | `PERPLEXITY_PERSISTENT_PROFILE` | `true` | Set to `false` for anonymous mode |
 | `PERPLEXITY_HEADLESS` | `true` | Set to `false` for visible browser (debugging) |
+| `RAG_ARCHIVE_PATH` | `./data/rag_archive.jsonl` | Path to JSONL file for RAG storage |
+
+### Local RAG Storage
+
+All Perplexity interactions are automatically archived to a local JSONL file for downstream RAG pipelines. Each interaction creates two entries: one for the user message and one for the assistant response.
+
+**Archive Format (JSONL)**:
+```json
+{"id":"uuid","chat_id":"perplexity-url","timestamp":"2026-01-20T12:00:00.000Z","role":"user","content":"user message","metadata":{"source":"perplexity-mcp-zerver"}}
+{"id":"uuid","chat_id":"perplexity-url","timestamp":"2026-01-20T12:00:01.000Z","role":"assistant","content":"response","metadata":{"source":"perplexity-mcp-zerver","model":"claude-3","research_mode":"search"}}
+```
+
+**Custom Archive Location**:
+```bash
+RAG_ARCHIVE_PATH=/custom/path/archive.jsonl bun run start
+```
+
+**Query Archives with jq**:
+```bash
+# All entries
+jq -c '.' ./data/rag_archive.jsonl
+
+# Only assistant responses
+jq -c 'select(.role == "assistant")' ./data/rag_archive.jsonl
+
+# Entries from a specific chat
+jq -c 'select(.chat_id | contains("abc123"))' ./data/rag_archive.jsonl
+```
 
 ### Debugging with Visible Browser
 

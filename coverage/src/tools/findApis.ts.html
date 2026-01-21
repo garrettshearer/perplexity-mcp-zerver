@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -103,15 +103,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -123,8 +123,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * Tool implementation for finding APIs
  */
@@ -134,15 +134,15 @@ import type { PuppeteerContext } from "../types/index.js";
 /**
  * Handles API discovery and comparison
  */
-export default async function findApis(
-  args: { requirement: string; context?: string },
-  ctx: PuppeteerContext,
-  performSearch: (prompt: string, ctx: PuppeteerContext) =&gt; Promise&lt;string&gt;,
-): Promise&lt;string&gt; {
-  const { requirement, context = "" } = args;
-  const prompt = `Find and evaluate APIs that could be used for: ${requirement}. ${
-    context ? `Context: ${context}` : ""
-  } For each API, provide:
+<span class="cstat-no" title="statement not covered" >export default async function findApis(</span>
+<span class="cstat-no" title="statement not covered" >  args: { requirement: string; context?: string },</span>
+<span class="cstat-no" title="statement not covered" >  ctx: PuppeteerContext,</span>
+<span class="cstat-no" title="statement not covered" >  performSearch: (prompt: string, ctx: PuppeteerContext) =&gt; Promise&lt;string&gt;,</span>
+<span class="cstat-no" title="statement not covered" >): Promise&lt;string&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const { requirement, context = "" } = args;</span>
+<span class="cstat-no" title="statement not covered" >  const prompt = `Find and evaluate APIs that could be used for: ${requirement}. ${</span>
+<span class="cstat-no" title="statement not covered" >    context ? `Context: ${context}` : ""</span>
+<span class="cstat-no" title="statement not covered" >  } For each API, provide:</span>
 1. Name and brief description
 2. Key features and capabilities
 3. Pricing model and rate limits
@@ -154,8 +154,8 @@ export default async function findApis(
 9. Code examples for basic usage
 10. Comparison with similar APIs
 11. SDK availability and language support`;
-  return await performSearch(prompt, ctx);
-}
+<span class="cstat-no" title="statement not covered" >  return await performSearch(prompt, ctx);</span>
+<span class="cstat-no" title="statement not covered" >}</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -163,7 +163,7 @@ export default async function findApis(
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-20T22:33:43.317Z
+                at 2026-01-21T00:04:01.266Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

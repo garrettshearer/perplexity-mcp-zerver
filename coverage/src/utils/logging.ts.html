@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>14/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/4</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>14/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -101,26 +101,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">22x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">21x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export type LogLevel = "info" | "warn" | "error";
 &nbsp;
 /**
@@ -130,26 +130,26 @@
  * - Used everywhere in the codebase for consistency.
  * - Easily extensible for future needs (e.g., file/remote logging).
  */
-export function log(level: LogLevel, message: string, meta?: Record&lt;string, unknown&gt;): void {
+<span class="cstat-no" title="statement not covered" >export function log(level: LogLevel, message: string, meta?: Record&lt;string, unknown&gt;): void {</span>
   // Only log errors and critical info to reduce noise
-  if (level === "warn" &amp;&amp; !message.includes("CAPTCHA") &amp;&amp; !message.includes("failed")) {
-    return; // Skip most warnings
-  }
+<span class="cstat-no" title="statement not covered" >  if (level === "warn" &amp;&amp; !message.includes("CAPTCHA") &amp;&amp; !message.includes("failed")) {</span>
+<span class="cstat-no" title="statement not covered" >    return; // Skip most warnings</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
   
-  const timestamp = new Date().toISOString();
+<span class="cstat-no" title="statement not covered" >  const timestamp = new Date().toISOString();</span>
   // Always use console.error for all log levels to keep stdout clean for MCP protocol
-  if (meta &amp;&amp; Object.keys(meta).length &gt; 0) {
+<span class="cstat-no" title="statement not covered" >  if (meta &amp;&amp; Object.keys(meta).length &gt; 0) {</span>
     // eslint-disable-next-line no-console
-    console.error(`[${timestamp}] [${level.toUpperCase()}] ${message}`, meta);
-  } else {
+<span class="cstat-no" title="statement not covered" >    console.error(`[${timestamp}] [${level.toUpperCase()}] ${message}`, meta);</span>
+<span class="cstat-no" title="statement not covered" >  } else {</span>
     // eslint-disable-next-line no-console
-    console.error(`[${timestamp}] [${level.toUpperCase()}] ${message}`);
-  }
-}
+<span class="cstat-no" title="statement not covered" >    console.error(`[${timestamp}] [${level.toUpperCase()}] ${message}`);</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
 &nbsp;
-export const logInfo = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt; log("info", msg, meta);
-export const logWarn = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt; log("warn", msg, meta);
-export const logError = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt; log("error", msg, meta);
+<span class="cstat-no" title="statement not covered" >export const logInfo = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt; log("info", msg, meta);</span>
+<span class="cstat-no" title="statement not covered" >export const logWarn = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt; log("warn", msg, meta);</span>
+<span class="cstat-no" title="statement not covered" >export const logError = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt; log("error", msg, meta);</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -157,7 +157,7 @@ export const logError = (msg: string, meta?: Record&lt;string, unknown&gt;) =&gt
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-20T22:33:43.317Z
+                at 2026-01-21T00:04:01.266Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

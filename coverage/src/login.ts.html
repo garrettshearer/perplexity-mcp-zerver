@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/109</span>
+                <span class='fraction'>0/111</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/109</span>
+                <span class='fraction'>0/111</span>
             </div>
         
             
@@ -204,7 +204,11 @@
 <a name='L139'></a><a href='#L139'>139</a>
 <a name='L140'></a><a href='#L140'>140</a>
 <a name='L141'></a><a href='#L141'>141</a>
-<a name='L142'></a><a href='#L142'>142</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -235,6 +239,10 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -378,26 +386,30 @@
 <span class="cstat-no" title="statement not covered" >                }),</span>
 <span class="cstat-no" title="statement not covered" >            },</span>
 <span class="cstat-no" title="statement not covered" >        });</span>
+        // T002: Use proper type assertion via Object.assign instead of (window as any).chrome
+        // This satisfies TypeScript's global Window.chrome declaration from browser.ts
 <span class="cstat-no" title="statement not covered" >        if (typeof window.chrome === "undefined") {</span>
-<span class="cstat-no" title="statement not covered" >            (window as any).chrome = {</span>
-<span class="cstat-no" title="statement not covered" >                app: {</span>
-<span class="cstat-no" title="statement not covered" >                    InstallState: { DISABLED: "disabled", INSTALLED: "installed", NOT_INSTALLED: "not_installed" },</span>
-<span class="cstat-no" title="statement not covered" >                    RunningState: { CANNOT_RUN: "cannot_run", READY_TO_RUN: "ready_to_run", RUNNING: "running" },</span>
-<span class="cstat-no" title="statement not covered" >                    getDetails: () =&gt; { },</span>
-<span class="cstat-no" title="statement not covered" >                    getIsInstalled: () =&gt; { },</span>
-<span class="cstat-no" title="statement not covered" >                    installState: () =&gt; { },</span>
-<span class="cstat-no" title="statement not covered" >                    isInstalled: false,</span>
-<span class="cstat-no" title="statement not covered" >                    runningState: () =&gt; { },</span>
+<span class="cstat-no" title="statement not covered" >            Object.assign(window, {</span>
+<span class="cstat-no" title="statement not covered" >                chrome: {</span>
+<span class="cstat-no" title="statement not covered" >                    app: {</span>
+<span class="cstat-no" title="statement not covered" >                        InstallState: { DISABLED: "disabled", INSTALLED: "installed", NOT_INSTALLED: "not_installed" },</span>
+<span class="cstat-no" title="statement not covered" >                        RunningState: { CANNOT_RUN: "cannot_run", READY_TO_RUN: "ready_to_run", RUNNING: "running" },</span>
+<span class="cstat-no" title="statement not covered" >                        getDetails: () =&gt; { },</span>
+<span class="cstat-no" title="statement not covered" >                        getIsInstalled: () =&gt; { },</span>
+<span class="cstat-no" title="statement not covered" >                        installState: () =&gt; { },</span>
+<span class="cstat-no" title="statement not covered" >                        isInstalled: false,</span>
+<span class="cstat-no" title="statement not covered" >                        runningState: () =&gt; { },</span>
+<span class="cstat-no" title="statement not covered" >                    },</span>
+<span class="cstat-no" title="statement not covered" >                    runtime: {</span>
+<span class="cstat-no" title="statement not covered" >                        OnInstalledReason: { CHROME_UPDATE: "chrome_update", INSTALL: "install", SHARED_MODULE_UPDATE: "shared_module_update", UPDATE: "update" },</span>
+<span class="cstat-no" title="statement not covered" >                        PlatformArch: { ARM: "arm", ARM64: "arm64", MIPS: "mips", MIPS64: "mips64", X86_32: "x86-32", X86_64: "x86-64" },</span>
+<span class="cstat-no" title="statement not covered" >                        PlatformNaclArch: { ARM: "arm", MIPS: "mips", PNACL: "pnacl", X86_32: "x86-32", X86_64: "x86-64" },</span>
+<span class="cstat-no" title="statement not covered" >                        PlatformOs: { ANDROID: "android", CROS: "cros", LINUX: "linux", MAC: "mac", OPENBSD: "openbsd", WIN: "win" },</span>
+<span class="cstat-no" title="statement not covered" >                        RequestUpdateCheckStatus: { NO_UPDATE: "no_update", THROTTLED: "throttled", UPDATE_AVAILABLE: "update_available" },</span>
+<span class="cstat-no" title="statement not covered" >                        connect: () =&gt; ({ postMessage: () =&gt; { }, onMessage: { addListener: () =&gt; { }, removeListener: () =&gt; { } }, disconnect: () =&gt; { } }),</span>
+<span class="cstat-no" title="statement not covered" >                    },</span>
 <span class="cstat-no" title="statement not covered" >                },</span>
-<span class="cstat-no" title="statement not covered" >                runtime: {</span>
-<span class="cstat-no" title="statement not covered" >                    OnInstalledReason: { CHROME_UPDATE: "chrome_update", INSTALL: "install", SHARED_MODULE_UPDATE: "shared_module_update", UPDATE: "update" },</span>
-<span class="cstat-no" title="statement not covered" >                    PlatformArch: { ARM: "arm", ARM64: "arm64", MIPS: "mips", MIPS64: "mips64", X86_32: "x86-32", X86_64: "x86-64" },</span>
-<span class="cstat-no" title="statement not covered" >                    PlatformNaclArch: { ARM: "arm", MIPS: "mips", PNACL: "pnacl", X86_32: "x86-32", X86_64: "x86-64" },</span>
-<span class="cstat-no" title="statement not covered" >                    PlatformOs: { ANDROID: "android", CROS: "cros", LINUX: "linux", MAC: "mac", OPENBSD: "openbsd", WIN: "win" },</span>
-<span class="cstat-no" title="statement not covered" >                    RequestUpdateCheckStatus: { NO_UPDATE: "no_update", THROTTLED: "throttled", UPDATE_AVAILABLE: "update_available" },</span>
-<span class="cstat-no" title="statement not covered" >                    connect: () =&gt; ({ postMessage: () =&gt; { }, onMessage: { addListener: () =&gt; { }, removeListener: () =&gt; { } }, disconnect: () =&gt; { } }),</span>
-<span class="cstat-no" title="statement not covered" >                },</span>
-<span class="cstat-no" title="statement not covered" >            };</span>
+<span class="cstat-no" title="statement not covered" >            });</span>
 <span class="cstat-no" title="statement not covered" >        }</span>
 <span class="cstat-no" title="statement not covered" >    });</span>
 <span class="cstat-no" title="statement not covered" >}</span>
@@ -493,7 +505,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-20T22:33:43.317Z
+                at 2026-01-21T00:04:01.266Z
             </div>
         <script src="../prettify.js"></script>
         <script>

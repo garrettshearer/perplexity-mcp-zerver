@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -104,15 +104,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -125,8 +125,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * Tool implementation for documentation retrieval
  */
@@ -136,15 +136,15 @@ import type { PuppeteerContext } from "../types/index.js";
 /**
  * Handles documentation fetching and formatting
  */
-export default async function getDocumentation(
-  args: { query: string; context?: string },
-  ctx: PuppeteerContext,
-  performSearch: (prompt: string, ctx: PuppeteerContext) =&gt; Promise&lt;string&gt;,
-): Promise&lt;string&gt; {
-  const { query, context = "" } = args;
-  const prompt = `Provide comprehensive documentation and usage examples for ${query}. ${
-    context ? `Focus on: ${context}` : ""
-  } Include:
+<span class="cstat-no" title="statement not covered" >export default async function getDocumentation(</span>
+<span class="cstat-no" title="statement not covered" >  args: { query: string; context?: string },</span>
+<span class="cstat-no" title="statement not covered" >  ctx: PuppeteerContext,</span>
+<span class="cstat-no" title="statement not covered" >  performSearch: (prompt: string, ctx: PuppeteerContext) =&gt; Promise&lt;string&gt;,</span>
+<span class="cstat-no" title="statement not covered" >): Promise&lt;string&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const { query, context = "" } = args;</span>
+<span class="cstat-no" title="statement not covered" >  const prompt = `Provide comprehensive documentation and usage examples for ${query}. ${</span>
+<span class="cstat-no" title="statement not covered" >    context ? `Focus on: ${context}` : ""</span>
+<span class="cstat-no" title="statement not covered" >  } Include:</span>
 1. Basic overview and purpose
 2. Key features and capabilities
 3. Installation/setup if applicable
@@ -157,8 +157,8 @@ export default async function getDocumentation(
 10. Related tools/libraries that work well with it
 &nbsp;
 Crucially, also provide the main official URL(s) for this documentation on separate lines, prefixed with 'Official URL(s):'.`;
-  return await performSearch(prompt, ctx);
-}
+<span class="cstat-no" title="statement not covered" >  return await performSearch(prompt, ctx);</span>
+<span class="cstat-no" title="statement not covered" >}</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -166,7 +166,7 @@ Crucially, also provide the main official URL(s) for this documentation on separ
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-20T22:33:43.317Z
+                at 2026-01-21T00:04:01.266Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
