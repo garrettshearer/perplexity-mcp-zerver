@@ -51,5 +51,12 @@ export const CONFIG = {
     PROCESSING_TIMEOUT_MS: 300000, // 5 minutes
     POLL_INTERVAL_MS: 2000,
   } as const,
+
+  // Perplexica sync configuration
+  PERPLEXICA_URL: process.env["PERPLEXICA_URL"] || "http://localhost:3001",
+  PERPLEXICA_SYNC_STATE_PATH: process.env["PERPLEXICA_SYNC_STATE_PATH"] || "./data/perplexica_sync.json",
+  PERPLEXICA_EMBEDDING_MODEL: process.env["PERPLEXICA_EMBEDDING_MODEL"] || "nomic-embed-text",
+  PERPLEXICA_EMBEDDING_PROVIDER: process.env["PERPLEXICA_EMBEDDING_PROVIDER"] || "ollama",
+  PERPLEXICA_BATCH_SIZE: parseInt(process.env["PERPLEXICA_BATCH_SIZE"] || "5", 10),
 } as const;
 

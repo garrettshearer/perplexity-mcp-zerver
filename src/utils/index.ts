@@ -9,3 +9,6 @@ export type { LogLevel } from "./logging.js";
 
 // OpenWebUI sync utilities
 export { OpenWebUISyncer, OpenWebUISyncError } from "./openwebui-sync.js";
+
+// Perplexica sync utilities
+export { PerplexicaSyncer } from "./perplexica-sync.js";

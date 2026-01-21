@@ -143,3 +143,60 @@ export interface SyncState {
   knowledgeBaseId?: string;
   lastFileId?: string;
 }
+
+// ─── PERPLEXICA INTEGRATION TYPES ─────────────────────────────────────
+
+/**
+ * Configuration for Perplexica sync operations
+ */
+export interface PerplexicaSyncConfig {
+  /** Base URL of Perplexica instance (default: http://localhost:3001) */
+  perplexicaUrl: string;
+  /** Path to JSONL archive file */
+  archivePath: string;
+  /** Path to sync state JSON file */
+  syncStatePath: string;
+  /** Embedding model name (default: nomic-embed-text) */
+  embeddingModel: string;
+  /** Embedding model provider (default: ollama) */
+  embeddingProvider: string;
+  /** Number of documents to upload per batch */
+  batchSize: number;
+}
+
+/**
+ * Perplexica sync state for tracking synced documents
+ */
+export interface PerplexicaSyncState {
+  /** ISO timestamp of last sync */
+  lastSyncTime: string;
+  /** Array of document IDs that have been synced */
+  syncedDocumentIds: string[];
+  /** Total count of synced documents */
+  totalSynced: number;
+}
+
+/**
+ * Result of a Perplexica sync operation
+ */
+export interface PerplexicaSyncResult {
+  /** Whether the sync completed successfully */
+  success: boolean;
+  /** Count of newly synced documents */
+  newDocumentsSynced: number;
+  /** Count of documents skipped (already synced) */
+  skippedDocuments: number;
+  /** Array of error messages if any occurred */
+  errors: string[];
+}
+
+/**
+ * Response from Perplexica /api/uploads endpoint
+ */
+export interface PerplexicaUploadResponse {
+  files: Array<{
+    id: string;
+    name: string;
+    status?: string;
+  }>;
+}

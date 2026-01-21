@@ -14,7 +14,8 @@
     "lint": "biome lint . --write",
     "format": "biome format . --write",
     "dev": "bun run build && bun run start",
-    "sync:openwebui": "bun bin/sync-openwebui.ts"
+    "sync:openwebui": "bun bin/sync-openwebui.ts",
+    "sync:perplexica": "bun bin/sync-perplexica.ts"
   },
   "keywords": [
     "mcp",
