@@ -38,5 +38,18 @@ export const CONFIG = {
     MAX_SCREENSHOTS: 5, // Maximum number of screenshots to keep
     SCREENSHOT_ON_RECOVERY_SUCCESS: false, // Don't screenshot successful recoveries
   },
+
+  // OpenWebUI sync configuration
+  OPENWEBUI_URL: process.env["OPENWEBUI_URL"] || "http://localhost:8090",
+  OPENWEBUI_API_KEY: process.env["OPENWEBUI_API_KEY"] || "",
+  OPENWEBUI_KB_NAME: process.env["OPENWEBUI_KB_NAME"] || "Perplexity RAG Archive",
+
+  // Sync operation settings
+  OPENWEBUI_SYNC: {
+    MAX_RETRIES: 3,
+    RETRY_DELAY_MS: 1000,
+    PROCESSING_TIMEOUT_MS: 300000, // 5 minutes
+    POLL_INTERVAL_MS: 2000,
+  } as const,
 } as const;
 

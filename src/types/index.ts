@@ -80,3 +80,66 @@ export type {
 
 // ─── SERVER TYPES ─────────────────────────────────────────────────────
 export type { ServerDependencies } from "./server.js";
+// ─── OPENWEBUI INTEGRATION TYPES ──────────────────────────────────────
+
+/**
+ * OpenWebUI configuration loaded from environment variables
+ */
+export interface OpenWebUIConfig {
+  /** Base URL of OpenWebUI instance (default: http://localhost:8090) */
+  url: string;
+  /** API key for authentication (required) */
+  apiKey: string;
+  /** Knowledge base name to create/update (default: "Perplexity RAG Archive") */
+  knowledgeBaseName: string;
+}
+
+/**
+ * OpenWebUI file upload response
+ */
+export interface OpenWebUIFileResponse {
+  id: string;
+  filename: string;
+  created_at?: string;
+}
+
+/**
+ * OpenWebUI file processing status
+ */
+export interface OpenWebUIFileStatus {
+  status: 'pending' | 'completed' | 'failed';
+  error?: string;
+}
+
+/**
+ * OpenWebUI knowledge base entity
+ */
+export interface OpenWebUIKnowledgeBase {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+}
+
+/**
+ * Sync operation result
+ */
+export interface SyncResult {
+  success: boolean;
+  skipped: boolean;
+  filesUploaded: number;
+  knowledgeBaseName: string;
+  knowledgeBaseId?: string;
+  recordsProcessed: number;
+  error?: string;
+}
+
+/**
+ * Sync state for idempotency tracking
+ */
+export interface SyncState {
+  lastSyncTimestamp: string;
+  lastArchiveMtime: number;
+  knowledgeBaseId?: string;
+  lastFileId?: string;
+}

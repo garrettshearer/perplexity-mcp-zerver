@@ -174,6 +174,59 @@ jq -c 'select(.role == "assistant")' ./data/rag_archive.jsonl
 jq -c 'select(.chat_id | contains("abc123"))' ./data/rag_archive.jsonl
 ```
 
+### OpenWebUI RAG Sync
+
+Sync your local RAG archive to an OpenWebUI knowledge base for enhanced retrieval capabilities.
+
+**Prerequisites**:
+- OpenWebUI instance running (default: `http://localhost:8090`)
+- OpenWebUI API key (Settings → Account → API Key)
+
+**Environment Variables**:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENWEBUI_URL` | `http://localhost:8090` | OpenWebUI instance URL |
+| `OPENWEBUI_API_KEY` | *(required)* | API key for authentication |
+| `OPENWEBUI_KB_NAME` | `Perplexity RAG Archive` | Knowledge base name to create/update |
+
+**Sync Command**:
+```bash
+# Set your API key
+export OPENWEBUI_API_KEY="your-api-key-here"
+
+# Run sync
+pnpm sync:openwebui
+
+# With verbose output
+pnpm sync:openwebui --verbose
+```
+
+**Features**:
+- **Idempotent**: Skips upload if archive hasn't changed since last sync
+- **Auto-retry**: Exponential backoff for transient errors (1s, 2s, 4s)
+- **Clear errors**: Actionable messages for common issues (auth, connection, timeout)
+- **Progress logging**: Status updates to stderr
+
+**Output**:
+```
+Starting OpenWebUI RAG sync...
+  Archive: ./data/rag_archive.jsonl
+  Target: http://localhost:8090
+  Knowledge Base: Perplexity RAG Archive
+Uploading file: rag_archive.jsonl
+Waiting for file processing...
+File processing completed
+Found existing knowledge base: Perplexity RAG Archive
+Adding file to knowledge base...
+File added to knowledge base successfully
+Sync completed successfully!
+  Knowledge Base: Perplexity RAG Archive
+  Knowledge Base ID: kb-abc123
+  Files Uploaded: 1
+  Records Processed: 42
+```
+
 ### Debugging with Visible Browser
 
 For debugging browser automation issues or demos, run with a visible browser window:
